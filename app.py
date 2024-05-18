@@ -3,9 +3,9 @@
 
 import dash
 import dash_bootstrap_components as dbc
-from dash import dcc, Output, Input
+from dash import dcc, Output, Input, html
 
-from app import waveforms
+import waveforms
 
 # Configuration constants for app input boundaries
 MASS_MIN = 1.0
@@ -15,16 +15,37 @@ SPIN_MIN = -0.99
 SPIN_MAX = 0.99
 SPIN_STEP = 0.2
 
-appl = dash.Dash('CBC Waveform Visualizer', external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash('CBC Waveform Visualizer', external_stylesheets=[dbc.themes.BOOTSTRAP])
+server = app.server
 
 fig = waveforms.plot_cbc_waveform(50.0, 50.0, 0.0, 0.0)
 
-appl.layout = dbc.Container(children=[
+app.layout = dbc.Container(children=[
+
+    # Blank row for spacing
+    dbc.Row(children=[dbc.Col(children=[html.Br()], md=12)]),
 
     # Row for all inputs
     dbc.Row(children=[
 
-        # Column for the first component inputs
+        # Row for title and approximant / Polarization dropdowns
+        dbc.Row(children=[
+            dbc.Col(children=[
+                dbc.Label("CBC Waveform Visualizer", style={'font-size': '24px'}),
+            ], md=8),
+            dbc.Col(children=[
+                dbc.Label("Approximant"),
+                dcc.Dropdown(options=waveforms.APPROXIMANTS,
+                             value='IMRPhenomD', id='dropdown-approximant'),
+            ], md=2),
+            dbc.Col(children=[
+                dbc.Label("Polarization"),
+                dcc.Dropdown(options=['plus', 'cross', 'both'],
+                             value='plus', id='dropdown-polarization'),
+            ], md=2),
+        ]),
+
+        # Row for the first component inputs
         dbc.Row(children=[
             dbc.Col(children=[
                 dbc.Label("M1 (M_sol)"),
@@ -36,15 +57,15 @@ appl.layout = dbc.Container(children=[
             ], md=4),
         ]),
 
-        # Column for the second component inputs
+        # Row for the second component inputs
         dbc.Row(children=[
             dbc.Col(children=[
                 dbc.Label("M2 (M_sol)"),
-                dcc.Slider(min=MASS_MIN, max=MASS_MAX, step=10.0, value=50.0, id='slider-m2'),
+                dcc.Slider(min=MASS_MIN, max=MASS_MAX, step=MASS_STEP, value=50.0, id='slider-m2'),
             ], md=8),
             dbc.Col(children=[
                 dbc.Label("S2z"),
-                dcc.Slider(min=SPIN_MIN, max=SPIN_MAX, step=0.1, value=0.0, id='slider-s2z'),
+                dcc.Slider(min=SPIN_MIN, max=SPIN_MAX, step=SPIN_STEP, value=0.0, id='slider-s2z'),
             ], md=4),
         ]),
     ]),
@@ -59,17 +80,19 @@ appl.layout = dbc.Container(children=[
 ])
 
 
-@appl.callback(
+@app.callback(
     Output('graph-waveform', 'figure'),
     Input('slider-m1', 'value'),
     Input('slider-m2', 'value'),
     Input('slider-s1z', 'value'),
     Input('slider-s2z', 'value'),
+    Input('dropdown-approximant', 'value'),
+    Input('dropdown-polarization', 'value'),
 )
-def update_waveform(m1, m2, s1z, s2z):
+def update_waveform(m1, m2, s1z, s2z, approximant, polarization):
     """Update the waveform plot based on the input values."""
-    return waveforms.plot_cbc_waveform(m1, m2, s1z, s2z)
+    return waveforms.plot_cbc_waveform(m1, m2, s1z, s2z, approximant, polarization)
 
 
 if __name__ == "__main__":
-    appl.run_server()
+    app.run_server(debug=False)

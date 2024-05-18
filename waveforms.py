@@ -8,11 +8,13 @@ import pandas
 from plotly import express
 
 APPROXIMANTS = [
-    'IMRPhenomD'
+    'IMRPhenomD',
+    'IMRPhenomPv2',
 ]
 
 
-def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0) -> pandas.DataFrame:
+def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0,
+                     approximant: str = 'IMRPhenomD') -> pandas.DataFrame:
     """Get a CBC waveform for a given binary system.
 
     Args:
@@ -45,7 +47,7 @@ def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0) -
         'S2z': s2z,
 
         # Approximant to use
-        'approximant': lalsimulation.GetApproximantFromString('IMRPhenomD'),
+        'approximant': lalsimulation.GetApproximantFromString(approximant),
 
         # Time domain parameters
         'deltaT': 1.0 / 256,
@@ -71,7 +73,6 @@ def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0) -
     kwargs['m1'] *= lal.MSUN_SI
     kwargs['m2'] *= lal.MSUN_SI
 
-    print(len(kwargs.keys()))
     hplus, hcross = lalsimulation.SimInspiralTD(**kwargs)
 
     # Make array of time coordinates
@@ -83,7 +84,8 @@ def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0) -
     return data
 
 
-def plot_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0):
+def plot_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant='IMRPhenomD',
+                      polarization='plus'):
     """Plot a CBC waveform for a given binary system.
 
     Args:
@@ -96,7 +98,10 @@ def plot_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0):
         s2z:
             float, dimensionless spin of the second component
     """
-    data = get_cbc_waveform(m1, m2, s1z, s2z)
+    data = get_cbc_waveform(m1, m2, s1z, s2z, approximant=approximant)
+
+    if polarization != 'both':
+        data = data[data['polarization'] == polarization]
 
     fig = express.line(data, x='time', y='strain', color='polarization', title='CBC Waveform')
 
