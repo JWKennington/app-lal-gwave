@@ -5,6 +5,7 @@ import lal
 import lalsimulation
 import numpy
 import pandas
+from plotly import express
 
 APPROXIMANTS = [
     'IMRPhenomD'
@@ -80,3 +81,23 @@ def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0) -
         pandas.DataFrame({'time': ts, 'strain': hcross.data.data}).assign(polarization='cross'),
     ], axis=0)
     return data
+
+
+def plot_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0):
+    """Plot a CBC waveform for a given binary system.
+
+    Args:
+        m1:
+            float, mass of the first component in solar masses
+        m2:
+            float, mass of the second component in solar masses
+        s1z:
+            float, dimensionless spin of the first component
+        s2z:
+            float, dimensionless spin of the second component
+    """
+    data = get_cbc_waveform(m1, m2, s1z, s2z)
+
+    fig = express.line(data, x='time', y='strain', color='polarization')
+
+    return fig
