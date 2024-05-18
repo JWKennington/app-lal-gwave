@@ -98,6 +98,6 @@ def plot_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0):
     """
     data = get_cbc_waveform(m1, m2, s1z, s2z)
 
-    fig = express.line(data, x='time', y='strain', color='polarization')
+    fig = express.line(data, x='time', y='strain', color='polarization', title='CBC Waveform')
 
     return fig

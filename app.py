@@ -67,6 +67,7 @@ appl.layout = dbc.Container(children=[
     Input('slider-s2z', 'value'),
 )
 def update_waveform(m1, m2, s1z, s2z):
+    """Update the waveform plot based on the input values."""
     return waveforms.plot_cbc_waveform(m1, m2, s1z, s2z)
 
 
