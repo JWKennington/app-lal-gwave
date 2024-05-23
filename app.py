@@ -15,14 +15,17 @@ SPIN_MIN = -0.99
 SPIN_MAX = 0.99
 SPIN_STEP = 0.2
 
-BACKGROUND_STYLE = {
-    'background-image': 'url(“/assets/Ripple.png”)',
-    'background-repeat': 'no-repeat',
-    'background-position': 'right top',
-    'background-size': '150px 100px',
+BACKGROUND_IMAGE = {
+    'background-image': 'url("/assets/Ripple.png")',
+    'background-position': 'center',
+    'background-size': 'cover',
 }
 
-app = dash.Dash('CBC Waveform Explorer', external_stylesheets=[dbc.themes.BOOTSTRAP])
+BACKGROUND_WHITE = {
+    'background-color': 'white',
+}
+
+app = dash.Dash('CBC Waveform Explorer', external_stylesheets=[dbc.themes.BOOTSTRAP], assets_folder='assets', assets_url_path='/assets/')
 server = app.server
 
 data = waveforms.get_cbc_waveform(50.0, 50.0, 0.0, 0.0)
@@ -31,75 +34,81 @@ fig_td = plot.cbc_time_domain(data)
 fig_fd = plot.cbc_freq_domain(data)
 fig_spec = plot.cbc_spectrogram(data_spec)
 
-app.layout = dbc.Container(style=BACKGROUND_STYLE, children=[
+app.layout = dbc.Container(fluid=False, children=[
 
-    # Blank row for spacing
-    dbc.Row(children=[dbc.Col(children=[html.Br()], md=12)]),
-
-    # Row for all inputs
-    dbc.Row(children=[
-
-        # Row for title and approximant / Polarization dropdowns
+    html.Div(style=BACKGROUND_WHITE, children=[
         dbc.Row(children=[
-            dbc.Col(children=[
-                dbc.Label("CBC Waveform Explorer", style={'font-size': '24px'}),
-            ], md=8),
-            dbc.Col(children=[
-                dbc.Label("Approximant"),
-                dcc.Dropdown(options=waveforms.APPROXIMANTS,
-                             value='IMRPhenomD', id='dropdown-approximant'),
-            ], md=2),
-            dbc.Col(children=[
-                dbc.Label("Polarization"),
-                dcc.Dropdown(options=['plus', 'cross', 'both'],
-                             value='plus', id='dropdown-polarization'),
-            ], md=2),
-        ]),
 
-        # Row for the first component inputs
-        dbc.Row(children=[
-            dbc.Col(children=[
-                dbc.Label("M1 (M_sol)"),
-                dcc.Slider(min=MASS_MIN, max=MASS_MAX, step=MASS_STEP, value=50.0, id='slider-m1', updatemode='drag'),
-            ], md=8),
-            dbc.Col(children=[
-                dbc.Label("S1z"),
-                dcc.Slider(min=SPIN_MIN, max=SPIN_MAX, step=SPIN_STEP, value=0.0, id='slider-s1z', updatemode='drag'),
-            ], md=4),
-        ]),
+            # Blank row for spacing
+            dbc.Row(children=[dbc.Col(children=[html.Br()], md=12)]),
 
-        # Row for the second component inputs
-        dbc.Row(children=[
-            dbc.Col(children=[
-                dbc.Label("M2 (M_sol)"),
-                dcc.Slider(min=MASS_MIN, max=MASS_MAX, step=MASS_STEP, value=50.0, id='slider-m2', updatemode='drag'),
-            ], md=8),
-            dbc.Col(children=[
-                dbc.Label("S2z"),
-                dcc.Slider(min=SPIN_MIN, max=SPIN_MAX, step=SPIN_STEP, value=0.0, id='slider-s2z', updatemode='drag'),
-            ], md=4),
-        ]),
-    ]),
+            # Row for all inputs
+            dbc.Row(style=BACKGROUND_WHITE, children=[
 
-    # Row for the waveform plot
-    dbc.Row(children=[
-        dbc.Col(children=[
+                # Row for title and approximant / Polarization dropdowns
+                dbc.Row(children=[
+                    dbc.Col(children=[
+                        dbc.Label("CBC Waveform Explorer", style={'font-size': '24px'}),
+                    ], md=8),
+                    dbc.Col(children=[
+                        dbc.Label("Approximant"),
+                        dcc.Dropdown(options=waveforms.APPROXIMANTS,
+                                     value='IMRPhenomD', id='dropdown-approximant'),
+                    ], md=2),
+                    dbc.Col(children=[
+                        dbc.Label("Polarization"),
+                        dcc.Dropdown(options=['plus', 'cross', 'both'],
+                                     value='plus', id='dropdown-polarization'),
+                    ], md=2),
+                ]),
+
+                # Row for the first component inputs
+                dbc.Row(children=[
+                    dbc.Col(children=[
+                        dbc.Label("M1 (M_sol)"),
+                        dcc.Slider(min=MASS_MIN, max=MASS_MAX, step=MASS_STEP, value=50.0, id='slider-m1', updatemode='drag'),
+                    ], md=8),
+                    dbc.Col(children=[
+                        dbc.Label("S1z"),
+                        dcc.Slider(min=SPIN_MIN, max=SPIN_MAX, step=SPIN_STEP, value=0.0, id='slider-s1z', updatemode='drag'),
+                    ], md=4),
+                ]),
+
+                # Row for the second component inputs
+                dbc.Row(children=[
+                    dbc.Col(children=[
+                        dbc.Label("M2 (M_sol)"),
+                        dcc.Slider(min=MASS_MIN, max=MASS_MAX, step=MASS_STEP, value=50.0, id='slider-m2', updatemode='drag'),
+                    ], md=8),
+                    dbc.Col(children=[
+                        dbc.Label("S2z"),
+                        dcc.Slider(min=SPIN_MIN, max=SPIN_MAX, step=SPIN_STEP, value=0.0, id='slider-s2z', updatemode='drag'),
+                    ], md=4),
+                ]),
+            ]),
+
+            # Row for the waveform plot
             dbc.Row(children=[
                 dbc.Col(children=[
-                    dcc.Graph(id='graph-waveform-td', figure=fig_td),
-                ], md=12),
-            ]),
-            dbc.Row(children=[
+                    dbc.Row(children=[
+                        dbc.Col(children=[
+                            dcc.Graph(id='graph-waveform-td', figure=fig_td),
+                        ], md=12),
+                    ]),
+                    dbc.Row(children=[
+                        dbc.Col(children=[
+                            dcc.Graph(id='graph-waveform-fd', figure=fig_fd),
+                        ], md=12),
+                    ]),
+                ], md=7),
                 dbc.Col(children=[
-                    dcc.Graph(id='graph-waveform-fd', figure=fig_fd),
-                ], md=12),
+                    dcc.Graph(id='graph-waveform-sp', figure=fig_spec),
+                ], md=5),
             ]),
-        ], md=7),
-        dbc.Col(children=[
-            dcc.Graph(id='graph-waveform-sp', figure=fig_spec),
-        ], md=5),
-    ]),
 
+        ]),
+
+    ]),
 ])
 
 
