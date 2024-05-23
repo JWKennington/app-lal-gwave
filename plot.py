@@ -2,6 +2,7 @@
 """
 
 import pandas
+import xarray
 from plotly import express
 
 
@@ -59,3 +60,20 @@ def cbc_freq_domain(data: pandas.DataFrame, polarization='plus'):
     fig.update_yaxes(title_text='Amplitude')
 
     return fig
+
+
+def cbc_spectrogram(data: xarray.DataArray):
+    """Plot a spectrogram of a CBC waveform for a given binary system.
+
+    Args:
+        data:
+            xarray.DataArray, a spectrogram of a CBC waveform
+    """
+    fig = express.imshow(data, title='Spectrogram', origin='lower')
+
+    # Set axis labels
+    fig.update_xaxes(title_text='Time (s)')
+    fig.update_yaxes(title_text='Frequency (Hz)')
+
+    return fig
+
