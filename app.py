@@ -15,6 +15,13 @@ SPIN_MIN = -0.99
 SPIN_MAX = 0.99
 SPIN_STEP = 0.2
 
+BACKGROUND_STYLE = {
+    'background-image': 'url(“/assets/Ripple.png”)',
+    'background-repeat': 'no-repeat',
+    'background-position': 'right top',
+    'background-size': '150px 100px',
+}
+
 app = dash.Dash('CBC Waveform Explorer', external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server
 
@@ -24,7 +31,7 @@ fig_td = plot.cbc_time_domain(data)
 fig_fd = plot.cbc_freq_domain(data)
 fig_spec = plot.cbc_spectrogram(data_spec)
 
-app.layout = dbc.Container(children=[
+app.layout = dbc.Container(style=BACKGROUND_STYLE, children=[
 
     # Blank row for spacing
     dbc.Row(children=[dbc.Col(children=[html.Br()], md=12)]),
@@ -87,12 +94,10 @@ app.layout = dbc.Container(children=[
                     dcc.Graph(id='graph-waveform-fd', figure=fig_fd),
                 ], md=12),
             ]),
-            dbc.Row(children=[
-                dbc.Col(children=[
-                    dcc.Graph(id='graph-waveform-sp', figure=fig_fd),
-                ], md=12),
-            ]),
-        ], md=12)
+        ], md=7),
+        dbc.Col(children=[
+            dcc.Graph(id='graph-waveform-sp', figure=fig_spec),
+        ], md=5),
     ]),
 
 ])

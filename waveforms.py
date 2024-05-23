@@ -98,7 +98,7 @@ def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, a
     return data
 
 
-def get_spectrogram_data(data: pandas.DataFrame, polarization: str = 'plus') -> xarray.DataArray:
+def get_spectrogram_data(data: pandas.DataFrame, polarization: str = 'plus', win_m: int = 128, win_std: int = 16) -> xarray.DataArray:
     """Get the spectrogram data for a given CBC waveform.
 
     Args:
@@ -115,7 +115,7 @@ def get_spectrogram_data(data: pandas.DataFrame, polarization: str = 'plus') -> 
     ys = data['strain'].values
 
     # Get the spectrogram using ShortTimeFFT spectrogram
-    win = windows.gaussian(M=256, std=32)
+    win = windows.gaussian(M=win_m, std=win_std)
     sft = ShortTimeFFT(win=win, hop=2, fs=1 / (ts[1] - ts[0]), scale_to='psd')
     Sxx = sft.spectrogram(ys)
 
