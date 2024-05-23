@@ -41,6 +41,9 @@ def cbc_time_domain(data: pandas.DataFrame, polarization='plus'):
     # Set minimal margin
     fig.update_layout(margin=PLOT_MARGIN)
 
+    # Set legend location to below
+    fig.update_layout(legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1))
+
     return fig
 
 
@@ -73,6 +76,9 @@ def cbc_freq_domain(data: pandas.DataFrame, polarization='plus'):
 
     # Set minimal margin
     fig.update_layout(margin=PLOT_MARGIN)
+
+    # Set legend location to below
+    fig.update_layout(legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1))
 
     return fig
 
