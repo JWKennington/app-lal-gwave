@@ -5,7 +5,6 @@ import lal
 import lalsimulation
 import numpy
 import pandas
-from plotly import express
 
 APPROXIMANTS = [
     'IMRPhenomD',
@@ -48,14 +47,9 @@ def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, a
         # Approximant to use
         'approximant': lalsimulation.GetApproximantFromString(approximant),
 
-        # Time domain parameters
-        'deltaT': 1.0 / 256,
-
         # Frequency domain parameters
         'f_min': 15.0,
-        # 'f_max': 2048.0,
         'f_ref': 0.0,
-        # 'deltaF': 1.0 / 64,
 
         # Standard Extrinsic Parameters
         'distance': 1.e6 * lal.PC_SI,
@@ -72,36 +66,32 @@ def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, a
     kwargs['m1'] *= lal.MSUN_SI
     kwargs['m2'] *= lal.MSUN_SI
 
-    hplus, hcross = lalsimulation.SimInspiralTD(**kwargs)
+    # Make time-domain kwargs
+    kwargs_td = kwargs.copy()
+    kwargs_td['deltaT'] = 1.0 / 256
+
+    # Make frequency-domain kwargs
+    kwargs_fd = kwargs.copy()
+    kwargs_fd['f_max'] = 256.0
+    kwargs_fd['deltaF'] = 1.0 / 64
+
+    hplus_td, hcross_td = lalsimulation.SimInspiralTD(**kwargs_td)
+    hplus_fd, hcross_fd = lalsimulation.SimInspiralFD(**kwargs_fd)
 
     # Make array of time coordinates
-    ts = numpy.arange(0, len(hplus.data.data) * hplus.deltaT, hplus.deltaT)
+    ts = numpy.arange(0, len(hplus_td.data.data) * hplus_td.deltaT, hplus_td.deltaT)
+
+    # Make array of frequency coordinates
+    fs = numpy.arange(0, len(hplus_fd.data.data) * hplus_fd.deltaF, hplus_fd.deltaF)
+
+
+    # Concat all data
     data = pandas.concat([
-        pandas.DataFrame({'time': ts, 'strain': hplus.data.data}).assign(polarization='plus'),
-        pandas.DataFrame({'time': ts, 'strain': hcross.data.data}).assign(polarization='cross'),
+        pandas.DataFrame({'x': ts, 'strain': hplus_td.data.data}).assign(polarization='plus', domain='time', component='real'),
+        pandas.DataFrame({'x': ts, 'strain': hcross_td.data.data}).assign(polarization='cross', domain='time', component='real'),
+        pandas.DataFrame({'x': fs, 'strain': numpy.real(hplus_fd.data.data)}).assign(polarization='plus', domain='freq', component='real'),
+        pandas.DataFrame({'x': fs, 'strain': numpy.imag(hplus_fd.data.data)}).assign(polarization='plus', domain='freq', component='imag'),
+        pandas.DataFrame({'x': fs, 'strain': numpy.real(hcross_fd.data.data)}).assign(polarization='cross', domain='freq', component='real'),
+        pandas.DataFrame({'x': fs, 'strain': numpy.imag(hcross_fd.data.data)}).assign(polarization='cross', domain='freq', component='imag'),
     ], axis=0)
     return data
-
-
-def plot_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant='IMRPhenomD',
-                      polarization='plus'):
-    """Plot a CBC waveform for a given binary system.
-
-    Args:
-        m1:
-            float, mass of the first component in solar masses
-        m2:
-            float, mass of the second component in solar masses
-        s1z:
-            float, dimensionless spin of the first component
-        s2z:
-            float, dimensionless spin of the second component
-    """
-    data = get_cbc_waveform(m1, m2, s1z, s2z, approximant=approximant)
-
-    if polarization != 'both':
-        data = data[data['polarization'] == polarization]
-
-    fig = express.line(data, x='time', y='strain', color='polarization', title='CBC Waveform')
-
-    return fig

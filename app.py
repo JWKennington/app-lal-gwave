@@ -5,7 +5,7 @@ import dash
 import dash_bootstrap_components as dbc
 from dash import dcc, Output, Input, html
 
-import waveforms
+import waveforms, plot
 
 # Configuration constants for app input boundaries
 MASS_MIN = 1.0
@@ -15,10 +15,12 @@ SPIN_MIN = -0.99
 SPIN_MAX = 0.99
 SPIN_STEP = 0.2
 
-app = dash.Dash('CBC Waveform Visualizer', external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash('CBC Waveform Explorer', external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server
 
-fig = waveforms.plot_cbc_waveform(50.0, 50.0, 0.0, 0.0)
+data = waveforms.get_cbc_waveform(50.0, 50.0, 0.0, 0.0)
+fig_td = plot.cbc_time_domain(data)
+fig_fd = plot.cbc_freq_domain(data)
 
 app.layout = dbc.Container(children=[
 
@@ -31,7 +33,7 @@ app.layout = dbc.Container(children=[
         # Row for title and approximant / Polarization dropdowns
         dbc.Row(children=[
             dbc.Col(children=[
-                dbc.Label("CBC Waveform Visualizer", style={'font-size': '24px'}),
+                dbc.Label("CBC Waveform Explorer", style={'font-size': '24px'}),
             ], md=8),
             dbc.Col(children=[
                 dbc.Label("Approximant"),
@@ -73,7 +75,16 @@ app.layout = dbc.Container(children=[
     # Row for the waveform plot
     dbc.Row(children=[
         dbc.Col(children=[
-            dcc.Graph(id='graph-waveform', figure=fig),
+            dbc.Row(children=[
+                dbc.Col(children=[
+                    dcc.Graph(id='graph-waveform-td', figure=fig_td),
+                ], md=12),
+            ]),
+            dbc.Row(children=[
+                dbc.Col(children=[
+                    dcc.Graph(id='graph-waveform-fd', figure=fig_fd),
+                ], md=12),
+            ]),
         ], md=12)
     ]),
 
@@ -81,7 +92,8 @@ app.layout = dbc.Container(children=[
 
 
 @app.callback(
-    Output('graph-waveform', 'figure'),
+    Output('graph-waveform-td', 'figure'),
+    Output('graph-waveform-fd', 'figure'),
     Input('slider-m1', 'value'),
     Input('slider-m2', 'value'),
     Input('slider-s1z', 'value'),
@@ -91,7 +103,10 @@ app.layout = dbc.Container(children=[
 )
 def update_waveform(m1, m2, s1z, s2z, approximant, polarization):
     """Update the waveform plot based on the input values."""
-    return waveforms.plot_cbc_waveform(m1, m2, s1z, s2z, approximant, polarization)
+    data = waveforms.get_cbc_waveform(m1, m2, s1z, s2z, approximant)
+    fig_td = plot.cbc_time_domain(data, polarization)
+    fig_fd = plot.cbc_freq_domain(data, polarization)
+    return fig_td, fig_fd
 
 
 if __name__ == "__main__":
