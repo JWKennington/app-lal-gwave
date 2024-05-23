@@ -14,7 +14,7 @@ APPROXIMANTS = [
 ]
 
 
-def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD') -> pandas.DataFrame:
+def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD', include_freq: bool = True) -> pandas.DataFrame:
     """Get a CBC waveform for a given binary system.
 
     Args:
@@ -78,23 +78,30 @@ def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, a
     kwargs_fd['deltaF'] = 1.0 / 64
 
     hplus_td, hcross_td = lalsimulation.SimInspiralTD(**kwargs_td)
-    hplus_fd, hcross_fd = lalsimulation.SimInspiralFD(**kwargs_fd)
 
     # Make array of time coordinates
     ts = numpy.arange(0, len(hplus_td.data.data) * hplus_td.deltaT, hplus_td.deltaT)
 
-    # Make array of frequency coordinates
-    fs = numpy.arange(0, len(hplus_fd.data.data) * hplus_fd.deltaF, hplus_fd.deltaF)
-
-    # Concat all data
     data = pandas.concat([
         pandas.DataFrame({'x': ts, 'strain': hplus_td.data.data}).assign(polarization='plus', domain='time', component='real'),
         pandas.DataFrame({'x': ts, 'strain': hcross_td.data.data}).assign(polarization='cross', domain='time', component='real'),
-        pandas.DataFrame({'x': fs, 'strain': numpy.real(hplus_fd.data.data)}).assign(polarization='plus', domain='freq', component='real'),
-        pandas.DataFrame({'x': fs, 'strain': numpy.imag(hplus_fd.data.data)}).assign(polarization='plus', domain='freq', component='imag'),
-        pandas.DataFrame({'x': fs, 'strain': numpy.real(hcross_fd.data.data)}).assign(polarization='cross', domain='freq', component='real'),
-        pandas.DataFrame({'x': fs, 'strain': numpy.imag(hcross_fd.data.data)}).assign(polarization='cross', domain='freq', component='imag'),
     ], axis=0)
+
+    if include_freq:
+        hplus_fd, hcross_fd = lalsimulation.SimInspiralFD(**kwargs_fd)
+
+        # Make array of frequency coordinates
+        fs = numpy.arange(0, len(hplus_fd.data.data) * hplus_fd.deltaF, hplus_fd.deltaF)
+
+        data_fd = pandas.concat([
+            pandas.DataFrame({'x': fs, 'strain': numpy.real(hplus_fd.data.data)}).assign(polarization='plus', domain='freq', component='real'),
+            pandas.DataFrame({'x': fs, 'strain': numpy.imag(hplus_fd.data.data)}).assign(polarization='plus', domain='freq', component='imag'),
+            pandas.DataFrame({'x': fs, 'strain': numpy.real(hcross_fd.data.data)}).assign(polarization='cross', domain='freq', component='real'),
+            pandas.DataFrame({'x': fs, 'strain': numpy.imag(hcross_fd.data.data)}).assign(polarization='cross', domain='freq', component='imag'),
+        ], axis=0)
+
+        data = pandas.concat([data, data_fd], axis=0)
+
     return data
 
 
@@ -129,4 +136,12 @@ def get_spectrogram_data(data: pandas.DataFrame, polarization: str = 'plus', win
     # Make the data with time and frequency coordinates
     data = xarray.DataArray(Sxx, dims=['frequency', 'time'], coords={'time': ts, 'frequency': sft.f})
 
+    return data
+
+
+def get_fake_data(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD', duration: float = 60) -> pandas.DataFrame:
+    """Get fake data for testing."""
+    ts = numpy.linspace(0, 1, 1000)
+    ys = numpy.sin(2 * numpy.pi * 10 * ts)
+    data = pandas.DataFrame({'x': ts, 'strain': ys, 'polarization': 'plus', 'domain': 'time', 'component': 'real'})
     return data
