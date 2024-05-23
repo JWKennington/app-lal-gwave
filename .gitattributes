@@ -1,0 +1,2 @@
+# Add png files to LFS
+*.png filter=lfs diff=lfs merge=lfs -text
