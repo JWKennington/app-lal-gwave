@@ -13,8 +13,7 @@ APPROXIMANTS = [
 ]
 
 
-def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0,
-                     approximant: str = 'IMRPhenomD') -> pandas.DataFrame:
+def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD') -> pandas.DataFrame:
     """Get a CBC waveform for a given binary system.
 
     Args:
