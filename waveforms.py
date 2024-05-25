@@ -135,11 +135,8 @@ def _gen_data(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approxim
     return data
 
 
-def _gen_noise(duration: float = DATA_DURATION, seed: int = 0) -> numpy.ndarray:
+def _gen_noise(duration: float = DATA_DURATION) -> numpy.ndarray:
     """Generate the noise data."""
-    # Set the random seed
-    numpy.random.seed(seed)
-
     # Generate array of zeros of length duration at sample rate
     ts = numpy.arange(0, duration, 1 / SAMPLE_RATE)
     data = numpy.random.randn(len(ts))
@@ -284,17 +281,17 @@ def get_mismatch_guess(m1: float, m2: float, s1z: float, s2z: float, approximant
     return mismatch
 
 
-def get_fake_data(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD', duration: float = 60, noise_scale: float = 1.0) -> pandas.DataFrame:
+def get_fake_data(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD', duration: float = 60, noise_scale: float = 1.0, polarization: str = 'plus', signal_scale: float = 1.0) -> pandas.DataFrame:
     """Get fake data for testing."""
     # Generate waveform data
-    data_event = _gen_data(m1, m2, s1z, s2z, approximant, duration=duration)
+    data_event = _gen_data(m1, m2, s1z, s2z, approximant, duration=duration, polarization=polarization)
     data_noise = _gen_noise(duration=duration)
 
     # Scale noise to ration of event amplitude
-    data_noise = data_noise * (noise_scale + numpy.max(numpy.abs(data_event)))
+    data_noise = data_noise * (noise_scale * numpy.max(numpy.abs(data_event)) / numpy.max(numpy.abs(data_noise)))
 
     # Inject event into noise
-    data = data_event + data_noise
+    data = signal_scale * data_event + data_noise
 
     # Convert to DataFrame
     ts = numpy.arange(0, duration, 1 / SAMPLE_RATE)

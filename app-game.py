@@ -31,6 +31,14 @@ BACKGROUND_WHITE = {
     'background-color': 'white',
 }
 
+DIFFICULTY_NOISE_RATIO = {
+    '1: Test': 0.0,
+    '2: Easy': 0.01,
+    '3: Medium': 0.1,
+    '4: Hard': 0.5,
+    '5: Expert': 1.0,
+}
+
 GAME_HISTORY = pandas.DataFrame(columns=['m1', 'm2', 's1z', 's2z', 'approximant', 'polarization',
                                          'guess_m1', 'guess_m2', 'guess_s1z', 'guess_s2z', 'match', 'mismatch', 'time'])
 GAME_EVENT_PARAMS = None
@@ -38,6 +46,9 @@ GAME_EVENT_START = None
 
 app = dash.Dash('CBC Waveform Game', external_stylesheets=[dbc.themes.BOOTSTRAP], assets_folder='assets', assets_url_path='/assets/')
 server = app.server
+
+fig_data = plot.cbc_time_domain(waveforms.get_fake_data(duration=60, noise_scale=1.0, signal_scale=0.0, m1=50.0, m2=50.0, s1z=0.0, s2z=0.0))
+fig_snr = plot.cbc_time_domain(waveforms.get_fake_data(duration=60, noise_scale=1.0, signal_scale=0.0, m1=50.0, m2=50.0, s1z=0.0, s2z=0.0))
 
 app.layout = dbc.Container(fluid=False, children=[
 
@@ -65,9 +76,9 @@ app.layout = dbc.Container(fluid=False, children=[
                         html.Button('Lock Guess', id='button-lock-guess', n_clicks=0),
                     ], md=2),
                     dbc.Col(children=[
-                        dbc.Label("Polarization"),
-                        dcc.Dropdown(options=['plus', 'cross', 'both'],
-                                     value='plus', id='dropdown-polarization'),
+                        dbc.Label("Difficulty"),
+                        dcc.Dropdown(options=list(sorted(DIFFICULTY_NOISE_RATIO.keys())),
+                                     value='2: Easy', id='dropdown-difficulty'),
                     ], md=2),
 
                     # Add button to generate random parameters for fake data
@@ -103,12 +114,12 @@ app.layout = dbc.Container(fluid=False, children=[
                 dbc.Col(children=[
                     dbc.Row(children=[
                         dbc.Col(children=[
-                            dcc.Graph(id='graph-data-raw'),
+                            dcc.Graph(id='graph-data-raw', figure=fig_data),
                         ], md=12),
                     ]),
                     dbc.Row(children=[
                         dbc.Col(children=[
-                            dcc.Graph(id='graph-data-snr'),
+                            dcc.Graph(id='graph-data-snr', figure=fig_snr),
                         ], md=12),
                     ]),
                 ], md=7),
@@ -144,11 +155,12 @@ def new_game(n_clicks):
     Output('placeholder2', 'children'),
     Output('graph-data-raw', 'figure'),
     Input('button-new-event', 'n_clicks'),
+    State('dropdown-difficulty', 'value'),
 )
-def new_event(n_clicks):
+def new_event(n_clicks, difficulty):
     """Reset the game history."""
     if n_clicks is None or n_clicks == 0:
-        return None, None
+        return None, fig_data
     print('New Event')
     global GAME_EVENT_START, GAME_EVENT_PARAMS
     GAME_EVENT_PARAMS = {
@@ -164,7 +176,7 @@ def new_event(n_clicks):
     GAME_EVENT_START = datetime.datetime.now()
 
     # Update the waveform plot
-    data = waveforms.get_fake_data(duration=60, noise_scale=1.0, **GAME_EVENT_PARAMS)
+    data = waveforms.get_fake_data(duration=60, noise_scale=DIFFICULTY_NOISE_RATIO[difficulty], **GAME_EVENT_PARAMS)
 
     # Make the plot
     fig = plot.cbc_time_domain(data)
@@ -199,7 +211,7 @@ def lock_guess(n_clicks, m1, m2, s1z, s2z):
     }
     event_params = GAME_EVENT_PARAMS.copy()
     event_params.pop('polarization')
-    guess_match = waveforms._waveform_match(w1=waveforms._waveform_fd(**GAME_EVENT_PARAMS)[0 if GAME_EVENT_PARAMS['polarization'] == 'plus' else 1],
+    guess_match = waveforms._waveform_match(w1=waveforms._waveform_fd(**event_params)[0 if GAME_EVENT_PARAMS['polarization'] == 'plus' else 1],
                                             w2=waveforms._waveform_fd(**guess_params)[0 if GAME_EVENT_PARAMS['polarization'] == 'plus' else 1])
 
     # Record the guess
@@ -209,7 +221,7 @@ def lock_guess(n_clicks, m1, m2, s1z, s2z):
         's1z': event_params['s1z'],
         's2z': event_params['s2z'],
         'approximant': event_params['approximant'],
-        'polarization': event_params['polarization'],
+        'polarization': GAME_EVENT_PARAMS['polarization'],
         'guess_m1': guess_params['m1'],
         'guess_m2': guess_params['m2'],
         'guess_s1z': guess_params['s1z'],
@@ -218,6 +230,8 @@ def lock_guess(n_clicks, m1, m2, s1z, s2z):
         'mismatch': 1 - guess_match,
         'time': guess_duration,
     }, index=[0])], axis=0)
+
+    print(GAME_HISTORY)
 
     # Reset the event state
     GAME_EVENT_START = None
@@ -232,9 +246,8 @@ def lock_guess(n_clicks, m1, m2, s1z, s2z):
     Input('slider-m2', 'value'),
     Input('slider-s1z', 'value'),
     Input('slider-s2z', 'value'),
-    Input('dropdown-polarization', 'value'),
 )
-def update_waveform(m1, m2, s1z, s2z, polarization):
+def update_waveform(m1, m2, s1z, s2z):
     """Update the waveform plot based on the input values."""
     print('Updating waveform plot')
 
