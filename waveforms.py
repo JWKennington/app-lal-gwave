@@ -108,6 +108,18 @@ def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, a
     return data
 
 
+
+def waveform_mismatch(w1: lal.COMPLEX16FrequencySeries, w2: lal.COMPLEX16FrequencySeries) -> float:
+    x = numpy.copy(w1.data.data)
+    y = numpy.copy(w2.data.data)
+    if w1.epoch != w2.epoch or dt:
+        y *= numpy.exp(-2.j * numpy.pi * freq_vec * (dt + float(w2.epoch - w1.epoch)))
+    y /= norm(y)
+    x /= norm(x)
+    m = inner_product(x, y)
+
+
+
 def get_spectrogram_data(data: pandas.DataFrame, polarization: str = 'plus', win_m: int = 128, win_std: int = 16) -> xarray.DataArray:
     """Get the spectrogram data for a given CBC waveform.
 
@@ -160,7 +172,6 @@ def generate_audio_file(m1: float, m2: float, s1z: float, s2z: float, approximan
 
     # Shift frequency up by 400Hz if requested
     if shift_freq:
-        ts = numpy.arange(0, len(ys)) / SAMPLE_RATE
 
         # Compute FFT using scipy
         Ys = numpy.fft.fft(ys)
@@ -184,6 +195,25 @@ def generate_audio_file(m1: float, m2: float, s1z: float, s2z: float, approximan
 
     if return_filepath:
         return file
+
+
+
+def get_mismatch_guess(m1: float, m2: float, s1z: float, s2z: float, approximant: str, polarization: str, guess_m1: float, guess_m2: float, guess_s1z: float, guess_s2z: float) -> float:
+    """Get the mismatch between the guess and the true waveform."""
+    data_true = get_cbc_waveform(m1, m2, s1z, s2z, approximant)
+    data_guess = get_cbc_waveform(guess_m1, guess_m2, guess_s1z, guess_s2z, approximant)
+
+    data_true = data_true[(data_true['polarization'] == polarization) & (data_true['domain'] == 'time')]
+    data_guess = data_guess[(data_guess['polarization'] == polarization) & (data_guess['domain'] == 'time')]
+
+    ts = data_true['x'].values
+    ys_true = data_true['strain'].values
+    ys_guess = data_guess['strain'].values
+
+    # Compute the mismatch
+    mismatch = numpy.sum((ys_true - ys_guess) ** 2)
+
+    return mismatch
 
 
 def get_fake_data(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD', duration: float = 60) -> pandas.DataFrame:
