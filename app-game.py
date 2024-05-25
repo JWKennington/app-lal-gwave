@@ -2,12 +2,16 @@
 
 Game: Visual Parameter Estimation!
 """
+import datetime
 
 import dash
 import dash_bootstrap_components as dbc
-from dash import dcc, Output, Input, html
+import numpy.random
+import pandas
+from dash import dcc, Output, Input, html, State
 
-import waveforms, plot
+import plot
+import waveforms
 
 # Configuration constants for app input boundaries
 MASS_MIN = 1.0
@@ -26,6 +30,11 @@ BACKGROUND_IMAGE = {
 BACKGROUND_WHITE = {
     'background-color': 'white',
 }
+
+GAME_HISTORY = pandas.DataFrame(columns=['m1', 'm2', 's1z', 's2z', 'approximant', 'polarization',
+                                         'guess_m1', 'guess_m2', 'guess_s1z', 'guess_s2z', 'mismatch', 'time'])
+GAME_EVENT_PARAMS = None
+GAME_EVENT_START = None
 
 app = dash.Dash('CBC Waveform Explorer', external_stylesheets=[dbc.themes.BOOTSTRAP], assets_folder='assets', assets_url_path='/assets/')
 server = app.server
@@ -51,17 +60,23 @@ app.layout = dbc.Container(fluid=False, children=[
                 dbc.Row(children=[
                     dbc.Col(children=[
                         dbc.Label("CBC Waveform Explorer", style={'font-size': '24px'}),
-                    ], md=8),
+                    ], md=4),
                     dbc.Col(children=[
-                        dbc.Label("Approximant"),
-                        dcc.Dropdown(options=waveforms.APPROXIMANTS,
-                                     value='IMRPhenomD', id='dropdown-approximant'),
+                        html.Button('New Game', id='button-new-game', n_clicks=0),
+                    ], md=2),
+                    dbc.Col(children=[
+                        html.Button('New Event', id='button-new-event', n_clicks=0),
+                    ], md=2),
+                    dbc.Col(children=[
+                        html.Button('Lock Guess', id='button-lock-guess', n_clicks=0),
                     ], md=2),
                     dbc.Col(children=[
                         dbc.Label("Polarization"),
                         dcc.Dropdown(options=['plus', 'cross', 'both'],
                                      value='plus', id='dropdown-polarization'),
                     ], md=2),
+
+                    # Add button to generate random parameters for fake data
                 ]),
 
                 # Row for the first component inputs
@@ -109,9 +124,70 @@ app.layout = dbc.Container(fluid=False, children=[
             ]),
 
         ]),
-
+        # Dummy div for no-op callbacks
+        html.Div(id="placeholder", style={"display": "none"})
     ]),
 ])
+
+
+@app.callback(
+    Output('placeholder', 'children'),
+    Input('button-new-game', 'n_clicks'),
+)
+def new_game(n_clicks):
+    """Reset the game history."""
+    print('New Game')
+    # Yeah, I know 'global' is bad, but it's either that or embed the game state in useless widgets, so...
+    global GAME_EVENT_START, GAME_EVENT_PARAMS
+    GAME_HISTORY.drop(GAME_HISTORY.index, inplace=True)
+    GAME_EVENT_PARAMS = None
+    GAME_EVENT_START = None
+
+
+@app.callback(
+    Output('placeholder', 'children'),
+    Input('button-new-event', 'n_clicks'),
+)
+def new_event(n_clicks):
+    """Reset the game history."""
+    print('New Event')
+    global GAME_EVENT_START, GAME_EVENT_PARAMS
+    GAME_EVENT_PARAMS = {
+        'm1': numpy.random.rand() * (MASS_MAX - MASS_MIN) + MASS_MIN,
+        'm2': numpy.random.rand() * (MASS_MAX - MASS_MIN) + MASS_MIN,
+        's1z': numpy.random.rand() * (SPIN_MAX - SPIN_MIN) + SPIN_MIN,
+        's2z': numpy.random.rand() * (SPIN_MAX - SPIN_MIN) + SPIN_MIN,
+        'approximant': 'IMRPhenomPv2',
+        'polarization': 'plus',
+    }
+    GAME_EVENT_START = datetime.datetime.now()
+    GAME_HISTORY.drop(GAME_HISTORY.index, inplace=True)
+
+
+@app.callback(
+    Output('placeholder', 'children'),
+    Input('button-lock-guess', 'n_clicks'),
+    State('slider-m1', 'value'),
+    State('slider-m2', 'value'),
+    State('slider-s1z', 'value'),
+    State('slider-s2z', 'value'),
+)
+def lock_guess(n_clicks, m1, m2, s1z, s2z):
+    """Reset the game history."""
+    print('Lock Guess')
+    global GAME_EVENT_START, GAME_EVENT_PARAMS
+    if GAME_EVENT_PARAMS is None or GAME_EVENT_START is None:
+        return
+
+    guess_duration = (datetime.datetime.now() - GAME_EVENT_START).total_seconds()
+    guess_params = {
+        'm1': m1,
+        'm2': m2,
+        's1z': s1z,
+        's2z': s2z,
+    }
+    GAME_EVENT_START = None
+    GAME_HISTORY.drop(GAME_HISTORY.index, inplace=True)
 
 
 @app.callback(
