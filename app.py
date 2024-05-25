@@ -140,13 +140,15 @@ app.layout = dbc.Container(fluid=False, children=[
     State('slider-s2z', 'value'),
     State('dropdown-approximant', 'value'),
     State('dropdown-polarization', 'value'),
+    State('toggle-shift', 'value'),
 )
-def generate_audio(n_clicks, m1, m2, s1z, s2z, approximant, polarization):
+def generate_audio(n_clicks, m1, m2, s1z, s2z, approximant, polarization, shift):
     """Generate the audio waveform based on the input values."""
     print('Generating audio file')
     if n_clicks is None or n_clicks == 0:
         return []
-    filepath = waveforms.generate_audio_file(m1, m2, s1z, s2z, approximant, polarization=polarization, return_filepath=True)
+
+    filepath = waveforms.generate_audio_file(m1, m2, s1z, s2z, approximant, polarization=polarization, return_filepath=True, shift_freq=shift)
     return [html.Audio(id='audio-player', autoPlay=False, controls=True, style={'width': '100%'},
                         src=filepath, n_clicks=0, loop=False)]
     # return [html.Label(f'Audio file generated: {n_clicks}')]
