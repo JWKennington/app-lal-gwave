@@ -83,14 +83,32 @@ def _waveform_fd(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, appro
     return lalsimulation.SimInspiralFD(**kwargs_fd)
 
 
-def _waveform_mismatch(w1: lal.COMPLEX16FrequencySeries, w2: lal.COMPLEX16FrequencySeries) -> float:
+def _waveform_inner_product(w1: numpy.ndarray, w2: numpy.ndarray) -> float:
+    return numpy.abs((numpy.conj(w1) * w2).sum())
+
+
+def _waveform_norm(w: numpy.ndarray) -> float:
+    """Compute a trapezoidal norm
+
+    Args:
+        w:
+            Array, the array for which to compute the norm
+
+    Returns:
+        float, the norm
+    """
+    return _waveform_inner_product(w, w) ** 0.5
+
+
+def _waveform_mismatch(w1: lal.COMPLEX16FrequencySeries, w2: lal.COMPLEX16FrequencySeries, dt: float = 0.0) -> float:
     x = numpy.copy(w1.data.data)
     y = numpy.copy(w2.data.data)
     if w1.epoch != w2.epoch or dt:
         y *= numpy.exp(-2.j * numpy.pi * freq_vec * (dt + float(w2.epoch - w1.epoch)))
-    y /= norm(y)
-    x /= norm(x)
-    m = inner_product(x, y)
+    y /= _waveform_norm(y)
+    x /= _waveform_norm(x)
+    m = _waveform_inner_product(x, y)
+    return 1.0 - m
 
 
 def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD', include_freq: bool = True) -> pandas.DataFrame:
