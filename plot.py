@@ -1,6 +1,6 @@
 """Plotting utilities
 """
-
+import numpy
 import pandas
 import xarray
 from plotly import express
@@ -11,7 +11,8 @@ WIDTH_LINE = 700
 WIDTH_IMSHOW = 0.8 * WIDTH_LINE
 PLOT_MARGIN = dict(l=0, r=0, t=10, b=10)
 
-def cbc_time_domain(data: pandas.DataFrame, polarization='plus'):
+
+def cbc_time_domain(data: pandas.DataFrame, polarization='plus', scale: bool = False):
     """Plot a CBC waveform for a given binary system.
 
     Args:
@@ -24,11 +25,22 @@ def cbc_time_domain(data: pandas.DataFrame, polarization='plus'):
         s2z:
             float, dimensionless spin of the second component
     """
+    data = data.copy()
+
     # Filter for time domain
     data = data[data['domain'] == 'time']
 
     if polarization != 'both':
         data = data[data['polarization'] == polarization]
+
+    y_label = 'Strain'
+
+    if scale:
+        # Determine power of 10 to scale the strain
+        pow10 = numpy.round(numpy.log10(data['strain'].max()))
+        scale = 1 / 10 ** pow10
+        y_label = f'Strain x 10^{pow10}'
+        data['strain'] *= scale
 
     fig = express.line(data, x='x', y='strain', color='polarization',
                        height=HEIGHT_LINE,
@@ -36,7 +48,7 @@ def cbc_time_domain(data: pandas.DataFrame, polarization='plus'):
 
     # Set axis labels
     fig.update_xaxes(title_text='Time (s)')
-    fig.update_yaxes(title_text='Strain')
+    fig.update_yaxes(title_text=y_label)
 
     # Set minimal margin
     fig.update_layout(margin=PLOT_MARGIN)
@@ -111,16 +123,27 @@ def snr_time_domain(data: pandas.DataFrame):
         data:
             pandas.DataFrame, time domain strain data with columns: x, y
     """
+    data = data.copy()
+
+    # Scale y axis
+    max_snr = data['y'].abs().max()
+    if max_snr > 0:
+        print(max_snr)
+        pow10 = numpy.round(numpy.log10(max_snr))
+        print(pow10)
+        scale = 1 / 10 ** pow10
+        y_label = f'SNR x 10^{pow10}'
+        data['y'] *= scale
+
     fig = express.line(data, x='x', y='y',
                        height=HEIGHT_LINE,
                        width=WIDTH_LINE)
 
     # Set axis labels
     fig.update_xaxes(title_text='Time (s)')
-    fig.update_yaxes(title_text='SNR')
+    fig.update_yaxes(title_text=y_label)
 
     # Set minimal margin
     fig.update_layout(margin=PLOT_MARGIN)
 
     return fig
-

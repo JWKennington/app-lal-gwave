@@ -78,8 +78,8 @@ def _waveform_fd(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, appro
 
     # Make frequency-domain kwargs
     kwargs_fd = kwargs.copy()
-    kwargs_fd['f_max'] = 256.0
-    kwargs_fd['deltaF'] = 1.0 / 64
+    kwargs_fd['f_max'] = SAMPLE_RATE
+    kwargs_fd['deltaF'] = 1.0 / 64.0
 
     return lalsimulation.SimInspiralFD(**kwargs_fd)
 
@@ -319,13 +319,16 @@ def get_snr_data(m1: float, m2: float, s1z: float, s2z: float, data: pandas.Data
     # Extend sigamp array to match length of strain array padding at the beginning of the array
     # sigamp = numpy.pad(sigamp, (len(ts) - len(sigamp), 0))
 
-    # Extend sigamp array to match length of strain array padding at the end of the array
-    sigamp = numpy.pad(sigamp, (0, len(ts) - len(sigamp)))
-
     # Compute SNR
     snr = numpy.log10(sigamp ** 2 / numpy.sum(template ** 2))
 
+    # Extend snr array to match length of strain array padding at the beginning and end
+    pad_front = (len(ts) - len(sigamp)) // 2
+    pad_end = len(ts) - len(sigamp) - pad_front
+    snr = numpy.pad(snr, (pad_front, pad_end), constant_values=(snr[0], snr[-1]))
+
     # Package as dataframe
     data = pandas.DataFrame({'x': ts, 'y': snr})
+    print(data['y'].describe())
 
     return data

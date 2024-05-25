@@ -36,7 +36,7 @@ BACKGROUND_WHITE = {
 }
 
 DIFFICULTY_NOISE_RATIO = {
-    '1: Test': 0.0,
+    '1: Test': 0.0000001,
     '2: Easy': 0.01,
     '3: Medium': 0.1,
     '4: Hard': 0.5,
@@ -52,7 +52,7 @@ GAME_EVENT_DATA = waveforms.get_fake_data(duration=60, noise_scale=1.0, signal_s
 app = dash.Dash('CBC Waveform Game', external_stylesheets=[dbc.themes.BOOTSTRAP], assets_folder='assets', assets_url_path='/assets/')
 server = app.server
 
-fig_data = plot.cbc_time_domain(GAME_EVENT_DATA)
+fig_data = plot.cbc_time_domain(GAME_EVENT_DATA, scale=True)
 fig_snr = plot.snr_time_domain(waveforms.get_snr_data(m1=50.0, m2=50.0, s1z=0.0, s2z=0.0, data=GAME_EVENT_DATA))
 
 app.layout = dbc.Container(fluid=False, children=[
@@ -176,6 +176,13 @@ def new_event(n_clicks, difficulty):
         'approximant': 'IMRPhenomPv2',
         'polarization': 'plus',
     }
+
+    # Round m1, m2, s1z, s2z to nearest slider values
+    GAME_EVENT_PARAMS['m1'] = round(GAME_EVENT_PARAMS['m1'] / MASS_STEP) * MASS_STEP
+    GAME_EVENT_PARAMS['m2'] = round(GAME_EVENT_PARAMS['m2'] / MASS_STEP) * MASS_STEP
+    GAME_EVENT_PARAMS['s1z'] = round(GAME_EVENT_PARAMS['s1z'] / SPIN_STEP) * SPIN_STEP
+    GAME_EVENT_PARAMS['s2z'] = round(GAME_EVENT_PARAMS['s2z'] / SPIN_STEP) * SPIN_STEP
+
     print(GAME_EVENT_PARAMS)
 
     # Update game params
