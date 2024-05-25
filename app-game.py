@@ -1,6 +1,12 @@
 """This module defined the Plotly Dash App for the web interface.
 
 Game: Visual Parameter Estimation!
+
+Todos:
+
+- Add plots / table visual for game performance
+- Debug mismatch calculation (perfect parameters only get around 70% match)
+- Debug SNR calculation (confirm shape)
 """
 
 # TODO update buttons to share callback according to: https://dash.plotly.com/duplicate-callback-outputs
