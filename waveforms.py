@@ -281,7 +281,8 @@ def get_mismatch_guess(m1: float, m2: float, s1z: float, s2z: float, approximant
     return mismatch
 
 
-def get_fake_data(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD', duration: float = 60, noise_scale: float = 1.0, polarization: str = 'plus', signal_scale: float = 1.0) -> pandas.DataFrame:
+def get_fake_data(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD', duration: float = 60, noise_scale: float = 1.0, polarization: str = 'plus',
+                  signal_scale: float = 1.0) -> pandas.DataFrame:
     """Get fake data for testing."""
     # Generate waveform data
     data_event = _gen_data(m1, m2, s1z, s2z, approximant, duration=duration, polarization=polarization)
@@ -298,4 +299,33 @@ def get_fake_data(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, appr
     data = pandas.DataFrame({'x': ts, 'strain': data}).assign(polarization='plus',
                                                               domain='time',
                                                               component='real')
+    return data
+
+
+def get_snr_data(m1: float, m2: float, s1z: float, s2z: float, data: pandas.DataFrame) -> pandas.DataFrame:
+    """Get the SNR data for a given CBC waveform."""
+    # Get waveform template data
+    hplus_td, hcross_td = _waveform_td(m1, m2, s1z, s2z)
+    template = hplus_td.data.data
+
+    # Extract detector data
+    ts = data['x'].values
+    ys = data['strain'].values
+
+    # Compute signal amplitude using time convolution of template array through strain array
+    sigamp = numpy.convolve(ys, template, mode='valid')
+    sigamp_ts = ts[len(ts) - len(sigamp):]
+
+    # Extend sigamp array to match length of strain array padding at the beginning of the array
+    # sigamp = numpy.pad(sigamp, (len(ts) - len(sigamp), 0))
+
+    # Extend sigamp array to match length of strain array padding at the end of the array
+    sigamp = numpy.pad(sigamp, (0, len(ts) - len(sigamp)))
+
+    # Compute SNR
+    snr = numpy.log10(sigamp ** 2 / numpy.sum(template ** 2))
+
+    # Package as dataframe
+    data = pandas.DataFrame({'x': ts, 'y': snr})
+
     return data

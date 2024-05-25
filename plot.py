@@ -102,3 +102,25 @@ def cbc_spectrogram(data: xarray.DataArray):
     fig.update_layout(margin=PLOT_MARGIN)
 
     return fig
+
+
+def snr_time_domain(data: pandas.DataFrame):
+    """Plot a CBC waveform for a given binary system.
+
+    Args:
+        data:
+            pandas.DataFrame, time domain strain data with columns: x, y
+    """
+    fig = express.line(data, x='x', y='y',
+                       height=HEIGHT_LINE,
+                       width=WIDTH_LINE)
+
+    # Set axis labels
+    fig.update_xaxes(title_text='Time (s)')
+    fig.update_yaxes(title_text='SNR')
+
+    # Set minimal margin
+    fig.update_layout(margin=PLOT_MARGIN)
+
+    return fig
+

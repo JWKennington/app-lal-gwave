@@ -2,6 +2,10 @@
 
 Game: Visual Parameter Estimation!
 """
+
+# TODO update buttons to share callback according to: https://dash.plotly.com/duplicate-callback-outputs
+# Maybe, maybe just set output values of sliders back to default on new event and that may trigger the second callback auto updating SNR plot
+
 import datetime
 
 import dash
@@ -43,12 +47,13 @@ GAME_HISTORY = pandas.DataFrame(columns=['m1', 'm2', 's1z', 's2z', 'approximant'
                                          'guess_m1', 'guess_m2', 'guess_s1z', 'guess_s2z', 'match', 'mismatch', 'time'])
 GAME_EVENT_PARAMS = None
 GAME_EVENT_START = None
+GAME_EVENT_DATA = waveforms.get_fake_data(duration=60, noise_scale=1.0, signal_scale=0.0, m1=50.0, m2=50.0, s1z=0.0, s2z=0.0)
 
 app = dash.Dash('CBC Waveform Game', external_stylesheets=[dbc.themes.BOOTSTRAP], assets_folder='assets', assets_url_path='/assets/')
 server = app.server
 
-fig_data = plot.cbc_time_domain(waveforms.get_fake_data(duration=60, noise_scale=1.0, signal_scale=0.0, m1=50.0, m2=50.0, s1z=0.0, s2z=0.0))
-fig_snr = plot.cbc_time_domain(waveforms.get_fake_data(duration=60, noise_scale=1.0, signal_scale=0.0, m1=50.0, m2=50.0, s1z=0.0, s2z=0.0))
+fig_data = plot.cbc_time_domain(GAME_EVENT_DATA)
+fig_snr = plot.snr_time_domain(waveforms.get_snr_data(m1=50.0, m2=50.0, s1z=0.0, s2z=0.0, data=GAME_EVENT_DATA))
 
 app.layout = dbc.Container(fluid=False, children=[
 
@@ -88,11 +93,11 @@ app.layout = dbc.Container(fluid=False, children=[
                 dbc.Row(children=[
                     dbc.Col(children=[
                         dbc.Label("M1 (M_sol)"),
-                        dcc.Slider(min=MASS_MIN, max=MASS_MAX, step=MASS_STEP, value=100.0, id='slider-m1', updatemode='drag'),
+                        dcc.Slider(min=MASS_MIN, max=MASS_MAX, step=MASS_STEP, value=100.0, id='slider-m1'),
                     ], md=8),
                     dbc.Col(children=[
                         dbc.Label("S1z"),
-                        dcc.Slider(min=SPIN_MIN, max=SPIN_MAX, step=SPIN_STEP, value=0.0, id='slider-s1z', updatemode='drag'),
+                        dcc.Slider(min=SPIN_MIN, max=SPIN_MAX, step=SPIN_STEP, value=0.0, id='slider-s1z'),
                     ], md=4),
                 ]),
 
@@ -100,11 +105,11 @@ app.layout = dbc.Container(fluid=False, children=[
                 dbc.Row(children=[
                     dbc.Col(children=[
                         dbc.Label("M2 (M_sol)"),
-                        dcc.Slider(min=MASS_MIN, max=MASS_MAX, step=MASS_STEP, value=100.0, id='slider-m2', updatemode='drag'),
+                        dcc.Slider(min=MASS_MIN, max=MASS_MAX, step=MASS_STEP, value=100.0, id='slider-m2'),
                     ], md=8),
                     dbc.Col(children=[
                         dbc.Label("S2z"),
-                        dcc.Slider(min=SPIN_MIN, max=SPIN_MAX, step=SPIN_STEP, value=0.0, id='slider-s2z', updatemode='drag'),
+                        dcc.Slider(min=SPIN_MIN, max=SPIN_MAX, step=SPIN_STEP, value=0.0, id='slider-s2z'),
                     ], md=4),
                 ]),
             ]),
@@ -162,7 +167,7 @@ def new_event(n_clicks, difficulty):
     if n_clicks is None or n_clicks == 0:
         return None, fig_data
     print('New Event')
-    global GAME_EVENT_START, GAME_EVENT_PARAMS
+    global GAME_EVENT_START, GAME_EVENT_PARAMS, GAME_EVENT_DATA
     GAME_EVENT_PARAMS = {
         'm1': numpy.random.rand() * (MASS_MAX - MASS_MIN) + MASS_MIN,
         'm2': numpy.random.rand() * (MASS_MAX - MASS_MIN) + MASS_MIN,
@@ -171,12 +176,14 @@ def new_event(n_clicks, difficulty):
         'approximant': 'IMRPhenomPv2',
         'polarization': 'plus',
     }
+    print(GAME_EVENT_PARAMS)
 
     # Update game params
     GAME_EVENT_START = datetime.datetime.now()
 
     # Update the waveform plot
     data = waveforms.get_fake_data(duration=60, noise_scale=DIFFICULTY_NOISE_RATIO[difficulty], **GAME_EVENT_PARAMS)
+    GAME_EVENT_DATA = data
 
     # Make the plot
     fig = plot.cbc_time_domain(data)
@@ -241,7 +248,7 @@ def lock_guess(n_clicks, m1, m2, s1z, s2z):
 
 
 @app.callback(
-    Output('placeholder4', 'children'),
+    Output('graph-data-snr', 'figure'),
     Input('slider-m1', 'value'),
     Input('slider-m2', 'value'),
     Input('slider-s1z', 'value'),
@@ -251,9 +258,10 @@ def update_waveform(m1, m2, s1z, s2z):
     """Update the waveform plot based on the input values."""
     print('Updating waveform plot')
 
-    # TODO add the snr plot
+    data = waveforms.get_snr_data(m1, m2, s1z, s2z, data=GAME_EVENT_DATA)
+    fig_snr = plot.snr_time_domain(data)
 
-    return None
+    return fig_snr
 
 
 if __name__ == "__main__":
