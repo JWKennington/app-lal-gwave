@@ -56,13 +56,13 @@ app.layout = dbc.Container(fluid=False, children=[
                         dbc.Label("CBC Waveform Game", style={'font-size': '24px'}),
                     ], md=4),
                     dbc.Col(children=[
-                        # html.Button('New Game', id='button-new-game', n_clicks=0),
+                        html.Button('New Game', id='button-new-game', n_clicks=0),
                     ], md=2),
                     dbc.Col(children=[
-                        # html.Button('New Event', id='button-new-event', n_clicks=0),
+                        html.Button('New Event', id='button-new-event', n_clicks=0),
                     ], md=2),
                     dbc.Col(children=[
-                        # html.Button('Lock Guess', id='button-lock-guess', n_clicks=0),
+                        html.Button('Lock Guess', id='button-lock-guess', n_clicks=0),
                     ], md=2),
                     dbc.Col(children=[
                         dbc.Label("Polarization"),
@@ -103,12 +103,12 @@ app.layout = dbc.Container(fluid=False, children=[
                 dbc.Col(children=[
                     dbc.Row(children=[
                         dbc.Col(children=[
-                            dcc.Graph(id='graph-data-raw', figure=None),
+                            dcc.Graph(id='graph-data-raw'),
                         ], md=12),
                     ]),
                     dbc.Row(children=[
                         dbc.Col(children=[
-                            dcc.Graph(id='graph-data-snr', figure=None),
+                            dcc.Graph(id='graph-data-snr'),
                         ], md=12),
                     ]),
                 ], md=7),
@@ -116,108 +116,118 @@ app.layout = dbc.Container(fluid=False, children=[
 
         ]),
         # Dummy div for no-op callbacks
-        html.Div(id="placeholder", style={"display": "none"})
+        html.Div(id="placeholder", style={"display": "none"}),
+        html.Div(id="placeholder2", style={"display": "none"}),
+        html.Div(id="placeholder3", style={"display": "none"}),
+        html.Div(id="placeholder4", style={"display": "none"}),
     ]),
 ])
 
 
-# @app.callback(
-#     Output('placeholder', 'children'),
-#     Input('button-new-game', 'n_clicks'),
-# )
-# def new_game(n_clicks):
-#     """Reset the game history."""
-#     print('New Game')
-#     # Yeah, I know 'global' is bad, but it's either that or embed the game state in useless widgets, so...
-#     global GAME_EVENT_START, GAME_EVENT_PARAMS
-#     GAME_HISTORY.drop(GAME_HISTORY.index, inplace=True)
-#     GAME_EVENT_PARAMS = None
-#     GAME_EVENT_START = None
-#
-#
-# @app.callback(
-#     Output('placeholder', 'children'),
-#     Output('graph-data-raw', 'figure'),
-#     Input('button-new-event', 'n_clicks'),
-# )
-# def new_event(n_clicks):
-#     """Reset the game history."""
-#     print('New Event')
-#     global GAME_EVENT_START, GAME_EVENT_PARAMS
-#     GAME_EVENT_PARAMS = {
-#         'm1': numpy.random.rand() * (MASS_MAX - MASS_MIN) + MASS_MIN,
-#         'm2': numpy.random.rand() * (MASS_MAX - MASS_MIN) + MASS_MIN,
-#         's1z': numpy.random.rand() * (SPIN_MAX - SPIN_MIN) + SPIN_MIN,
-#         's2z': numpy.random.rand() * (SPIN_MAX - SPIN_MIN) + SPIN_MIN,
-#         'approximant': 'IMRPhenomPv2',
-#         'polarization': 'plus',
-#     }
-#
-#     # Update game params
-#     GAME_EVENT_START = datetime.datetime.now()
-#
-#     # Update the waveform plot
-#     data = waveforms.get_fake_data(duration=60, noise_scale=1.0, **GAME_EVENT_PARAMS)
-#
-#     # Make the plot
-#     fig = plot.cbc_time_domain(data)
-#
-#     return None, fig
-#
-#
-# @app.callback(
-#     Output('placeholder', 'children'),
-#     Input('button-lock-guess', 'n_clicks'),
-#     State('slider-m1', 'value'),
-#     State('slider-m2', 'value'),
-#     State('slider-s1z', 'value'),
-#     State('slider-s2z', 'value'),
-# )
-# def lock_guess(n_clicks, m1, m2, s1z, s2z):
-#     """Reset the game history."""
-#     print('Lock Guess')
-#     global GAME_EVENT_START, GAME_EVENT_PARAMS, GAME_HISTORY
-#     if GAME_EVENT_PARAMS is None or GAME_EVENT_START is None:
-#         return
-#
-#     guess_duration = (datetime.datetime.now() - GAME_EVENT_START).total_seconds()
-#     guess_params = {
-#         'm1': m1,
-#         'm2': m2,
-#         's1z': s1z,
-#         's2z': s2z,
-#     }
-#     event_params = GAME_EVENT_PARAMS.copy()
-#     event_params.pop('polarization')
-#     guess_match = waveforms._waveform_match(w1=waveforms._waveform_fd(**GAME_EVENT_PARAMS)[0 if GAME_EVENT_PARAMS['polarization'] == 'plus' else 1],
-#                                             w2=waveforms._waveform_fd(**guess_params)[0 if GAME_EVENT_PARAMS['polarization'] == 'plus' else 1])
-#
-#     # Record the guess
-#     GAME_HISTORY = pandas.concat([GAME_HISTORY, pandas.DataFrame({
-#         'm1': event_params['m1'],
-#         'm2': event_params['m2'],
-#         's1z': event_params['s1z'],
-#         's2z': event_params['s2z'],
-#         'approximant': event_params['approximant'],
-#         'polarization': event_params['polarization'],
-#         'guess_m1': guess_params['m1'],
-#         'guess_m2': guess_params['m2'],
-#         'guess_s1z': guess_params['s1z'],
-#         'guess_s2z': guess_params['s2z'],
-#         'match': guess_match,
-#         'mismatch': 1 - guess_match,
-#         'time': guess_duration,
-#     }, index=[0])], axis=0)
-#
-#     # Reset the event state
-#     GAME_EVENT_START = None
-#     GAME_EVENT_PARAMS = None
-#
-#     # TODO update the game performance plots!
+@app.callback(
+    Output('placeholder', 'children'),
+    Input('button-new-game', 'n_clicks'),
+)
+def new_game(n_clicks):
+    """Reset the game history."""
+    if n_clicks is None or n_clicks == 0:
+        return
+    print('New Game')
+    # Yeah, I know 'global' is bad, but it's either that or embed the game state in useless widgets, so...
+    global GAME_EVENT_START, GAME_EVENT_PARAMS
+    GAME_HISTORY.drop(GAME_HISTORY.index, inplace=True)
+    GAME_EVENT_PARAMS = None
+    GAME_EVENT_START = None
 
 
 @app.callback(
-    Output('placeholder', 'children'),
+    Output('placeholder2', 'children'),
+    Output('graph-data-raw', 'figure'),
+    Input('button-new-event', 'n_clicks'),
+)
+def new_event(n_clicks):
+    """Reset the game history."""
+    if n_clicks is None or n_clicks == 0:
+        return None, None
+    print('New Event')
+    global GAME_EVENT_START, GAME_EVENT_PARAMS
+    GAME_EVENT_PARAMS = {
+        'm1': numpy.random.rand() * (MASS_MAX - MASS_MIN) + MASS_MIN,
+        'm2': numpy.random.rand() * (MASS_MAX - MASS_MIN) + MASS_MIN,
+        's1z': numpy.random.rand() * (SPIN_MAX - SPIN_MIN) + SPIN_MIN,
+        's2z': numpy.random.rand() * (SPIN_MAX - SPIN_MIN) + SPIN_MIN,
+        'approximant': 'IMRPhenomPv2',
+        'polarization': 'plus',
+    }
+
+    # Update game params
+    GAME_EVENT_START = datetime.datetime.now()
+
+    # Update the waveform plot
+    data = waveforms.get_fake_data(duration=60, noise_scale=1.0, **GAME_EVENT_PARAMS)
+
+    # Make the plot
+    fig = plot.cbc_time_domain(data)
+
+    return None, fig
+
+
+@app.callback(
+    Output('placeholder3', 'children'),
+    Input('button-lock-guess', 'n_clicks'),
+    State('slider-m1', 'value'),
+    State('slider-m2', 'value'),
+    State('slider-s1z', 'value'),
+    State('slider-s2z', 'value'),
+)
+def lock_guess(n_clicks, m1, m2, s1z, s2z):
+    """Reset the game history."""
+    if n_clicks is None or n_clicks == 0:
+        return
+
+    print('Lock Guess')
+    global GAME_EVENT_START, GAME_EVENT_PARAMS, GAME_HISTORY
+    if GAME_EVENT_PARAMS is None or GAME_EVENT_START is None:
+        return
+
+    guess_duration = (datetime.datetime.now() - GAME_EVENT_START).total_seconds()
+    guess_params = {
+        'm1': m1,
+        'm2': m2,
+        's1z': s1z,
+        's2z': s2z,
+    }
+    event_params = GAME_EVENT_PARAMS.copy()
+    event_params.pop('polarization')
+    guess_match = waveforms._waveform_match(w1=waveforms._waveform_fd(**GAME_EVENT_PARAMS)[0 if GAME_EVENT_PARAMS['polarization'] == 'plus' else 1],
+                                            w2=waveforms._waveform_fd(**guess_params)[0 if GAME_EVENT_PARAMS['polarization'] == 'plus' else 1])
+
+    # Record the guess
+    GAME_HISTORY = pandas.concat([GAME_HISTORY, pandas.DataFrame({
+        'm1': event_params['m1'],
+        'm2': event_params['m2'],
+        's1z': event_params['s1z'],
+        's2z': event_params['s2z'],
+        'approximant': event_params['approximant'],
+        'polarization': event_params['polarization'],
+        'guess_m1': guess_params['m1'],
+        'guess_m2': guess_params['m2'],
+        'guess_s1z': guess_params['s1z'],
+        'guess_s2z': guess_params['s2z'],
+        'match': guess_match,
+        'mismatch': 1 - guess_match,
+        'time': guess_duration,
+    }, index=[0])], axis=0)
+
+    # Reset the event state
+    GAME_EVENT_START = None
+    GAME_EVENT_PARAMS = None
+
+    # TODO update the game performance plots!
+
+
+@app.callback(
+    Output('placeholder4', 'children'),
     Input('slider-m1', 'value'),
     Input('slider-m2', 'value'),
     Input('slider-s1z', 'value'),
