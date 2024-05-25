@@ -32,18 +32,12 @@ BACKGROUND_WHITE = {
 }
 
 GAME_HISTORY = pandas.DataFrame(columns=['m1', 'm2', 's1z', 's2z', 'approximant', 'polarization',
-                                         'guess_m1', 'guess_m2', 'guess_s1z', 'guess_s2z', 'mismatch', 'time'])
+                                         'guess_m1', 'guess_m2', 'guess_s1z', 'guess_s2z', 'match', 'mismatch', 'time'])
 GAME_EVENT_PARAMS = None
 GAME_EVENT_START = None
 
 app = dash.Dash('CBC Waveform Explorer', external_stylesheets=[dbc.themes.BOOTSTRAP], assets_folder='assets', assets_url_path='/assets/')
 server = app.server
-
-data = waveforms.get_cbc_waveform(50.0, 50.0, 0.0, 0.0)
-data_spec = waveforms.get_spectrogram_data(data)
-fig_td = plot.cbc_time_domain(data)
-fig_fd = plot.cbc_freq_domain(data)
-fig_spec = plot.cbc_spectrogram(data_spec)
 
 app.layout = dbc.Container(fluid=False, children=[
 
@@ -109,18 +103,15 @@ app.layout = dbc.Container(fluid=False, children=[
                 dbc.Col(children=[
                     dbc.Row(children=[
                         dbc.Col(children=[
-                            dcc.Graph(id='graph-waveform-td', figure=fig_td),
+                            dcc.Graph(id='graph-data-raw', figure=None),
                         ], md=12),
                     ]),
                     dbc.Row(children=[
                         dbc.Col(children=[
-                            dcc.Graph(id='graph-waveform-fd', figure=fig_fd),
+                            dcc.Graph(id='graph-data-snr', figure=None),
                         ], md=12),
                     ]),
                 ], md=7),
-                dbc.Col(children=[
-                    dcc.Graph(id='graph-waveform-sp', figure=fig_spec),
-                ], md=5),
             ]),
 
         ]),
@@ -146,6 +137,7 @@ def new_game(n_clicks):
 
 @app.callback(
     Output('placeholder', 'children'),
+    Output('graph-data-raw', 'figure'),
     Input('button-new-event', 'n_clicks'),
 )
 def new_event(n_clicks):
@@ -160,8 +152,17 @@ def new_event(n_clicks):
         'approximant': 'IMRPhenomPv2',
         'polarization': 'plus',
     }
+
+    # Update game params
     GAME_EVENT_START = datetime.datetime.now()
-    GAME_HISTORY.drop(GAME_HISTORY.index, inplace=True)
+
+    # Update the waveform plot
+    data = waveforms.get_fake_data(duration=60, noise_scale=1.0, **GAME_EVENT_PARAMS)
+
+    # Make the plot
+    fig = plot.cbc_time_domain(data)
+
+    return None, fig
 
 
 @app.callback(
@@ -175,7 +176,7 @@ def new_event(n_clicks):
 def lock_guess(n_clicks, m1, m2, s1z, s2z):
     """Reset the game history."""
     print('Lock Guess')
-    global GAME_EVENT_START, GAME_EVENT_PARAMS
+    global GAME_EVENT_START, GAME_EVENT_PARAMS, GAME_HISTORY
     if GAME_EVENT_PARAMS is None or GAME_EVENT_START is None:
         return
 
@@ -186,29 +187,51 @@ def lock_guess(n_clicks, m1, m2, s1z, s2z):
         's1z': s1z,
         's2z': s2z,
     }
+    event_params = GAME_EVENT_PARAMS.copy()
+    event_params.pop('polarization')
+    guess_match = waveforms._waveform_match(w1=waveforms._waveform_fd(**GAME_EVENT_PARAMS)[0 if GAME_EVENT_PARAMS['polarization'] == 'plus' else 1],
+                                            w2=waveforms._waveform_fd(**guess_params)[0 if GAME_EVENT_PARAMS['polarization'] == 'plus' else 1])
+
+    # Record the guess
+    GAME_HISTORY = pandas.concat([GAME_HISTORY, pandas.DataFrame({
+        'm1': event_params['m1'],
+        'm2': event_params['m2'],
+        's1z': event_params['s1z'],
+        's2z': event_params['s2z'],
+        'approximant': event_params['approximant'],
+        'polarization': event_params['polarization'],
+        'guess_m1': guess_params['m1'],
+        'guess_m2': guess_params['m2'],
+        'guess_s1z': guess_params['s1z'],
+        'guess_s2z': guess_params['s2z'],
+        'match': guess_match,
+        'mismatch': 1 - guess_match,
+        'time': guess_duration,
+    }, index=[0])], axis=0)
+
+    # Reset the event state
     GAME_EVENT_START = None
-    GAME_HISTORY.drop(GAME_HISTORY.index, inplace=True)
+    GAME_EVENT_PARAMS = None
+
+    # TODO update the game performance plots!
 
 
 @app.callback(
-    Output('graph-waveform-td', 'figure'),
-    Output('graph-waveform-fd', 'figure'),
-    Output('graph-waveform-sp', 'figure'),
+    Output('graph-data-snr', 'figure'),
     Input('slider-m1', 'value'),
     Input('slider-m2', 'value'),
     Input('slider-s1z', 'value'),
     Input('slider-s2z', 'value'),
-    Input('dropdown-approximant', 'value'),
     Input('dropdown-polarization', 'value'),
 )
-def update_waveform(m1, m2, s1z, s2z, approximant, polarization):
+def update_waveform(m1, m2, s1z, s2z, polarization):
     """Update the waveform plot based on the input values."""
-    data = waveforms.get_cbc_waveform(m1, m2, s1z, s2z, approximant)
+    data = waveforms.get_cbc_waveform(m1, m2, s1z, s2z)
     data_spec = waveforms.get_spectrogram_data(data)
-    fig_td = plot.cbc_time_domain(data, polarization)
-    fig_fd = plot.cbc_freq_domain(data, polarization)
-    fig_spec = plot.cbc_spectrogram(data_spec)
-    return fig_td, fig_fd, fig_spec
+
+    # TODO add the snr plot
+
+    return None
 
 
 if __name__ == "__main__":

@@ -16,6 +16,7 @@ APPROXIMANTS = [
 ]
 
 SAMPLE_RATE = 512.0
+DATA_DURATION = 60.0
 
 
 def _waveform_base_kwargs(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD') -> dict:
@@ -100,15 +101,51 @@ def _waveform_norm(w: numpy.ndarray) -> float:
     return _waveform_inner_product(w, w) ** 0.5
 
 
-def _waveform_mismatch(w1: lal.COMPLEX16FrequencySeries, w2: lal.COMPLEX16FrequencySeries, dt: float = 0.0) -> float:
+def _waveform_match(w1: lal.COMPLEX16FrequencySeries, w2: lal.COMPLEX16FrequencySeries, dt: float = 0.0) -> float:
     x = numpy.copy(w1.data.data)
     y = numpy.copy(w2.data.data)
+    freq_vec = numpy.arange(len(x)) * w1.deltaF + w1.f0
     if w1.epoch != w2.epoch or dt:
         y *= numpy.exp(-2.j * numpy.pi * freq_vec * (dt + float(w2.epoch - w1.epoch)))
     y /= _waveform_norm(y)
     x /= _waveform_norm(x)
     m = _waveform_inner_product(x, y)
-    return 1.0 - m
+    return m
+
+
+def _gen_data(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD', duration: float = DATA_DURATION, t0: float = None, polarization: str = 'plus') -> numpy.ndarray:
+    """Generate the CBC waveform data."""
+    # Generate array of zeros of length duration at sample rate
+    ts = numpy.arange(0, duration, 1 / SAMPLE_RATE)
+    data = numpy.zeros(shape=(len(ts),))
+
+    # Generate waveform data
+    hplus_td, hcross_td = _waveform_td(m1, m2, s1z, s2z, approximant)
+    strain = hplus_td.data.data if polarization == 'plus' else hcross_td.data.data
+
+    # Find start time array index
+    if t0 is None:
+        t0 = duration / 2
+    t0_idx = int(t0 * SAMPLE_RATE)
+
+    # Inject the waveform data
+    data[t0_idx:t0_idx + len(strain)] = strain
+
+    # Return data
+    return data
+
+
+def _gen_noise(duration: float = DATA_DURATION, seed: int = 0) -> numpy.ndarray:
+    """Generate the noise data."""
+    # Set the random seed
+    numpy.random.seed(seed)
+
+    # Generate array of zeros of length duration at sample rate
+    ts = numpy.arange(0, duration, 1 / SAMPLE_RATE)
+    data = numpy.random.randn(len(ts))
+
+    # Return data
+    return data
 
 
 def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD', include_freq: bool = True) -> pandas.DataFrame:
@@ -247,9 +284,21 @@ def get_mismatch_guess(m1: float, m2: float, s1z: float, s2z: float, approximant
     return mismatch
 
 
-def get_fake_data(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD', duration: float = 60) -> pandas.DataFrame:
+def get_fake_data(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD', duration: float = 60, noise_scale: float = 1.0) -> pandas.DataFrame:
     """Get fake data for testing."""
-    ts = numpy.linspace(0, 1, 1000)
-    ys = numpy.sin(2 * numpy.pi * 10 * ts)
-    data = pandas.DataFrame({'x': ts, 'strain': ys, 'polarization': 'plus', 'domain': 'time', 'component': 'real'})
+    # Generate waveform data
+    data_event = _gen_data(m1, m2, s1z, s2z, approximant, duration=duration)
+    data_noise = _gen_noise(duration=duration)
+
+    # Scale noise to ration of event amplitude
+    data_noise = data_noise * (noise_scale + numpy.max(numpy.abs(data_event)))
+
+    # Inject event into noise
+    data = data_event + data_noise
+
+    # Convert to DataFrame
+    ts = numpy.arange(0, duration, 1 / SAMPLE_RATE)
+    data = pandas.DataFrame({'x': ts, 'strain': data}).assign(polarization='plus',
+                                                              domain='time',
+                                                              component='real')
     return data
