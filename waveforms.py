@@ -14,7 +14,7 @@ APPROXIMANTS = [
     'IMRPhenomPv2',
 ]
 
-SAMPLE_RATE = 256.0
+SAMPLE_RATE = 512.0
 
 
 def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD', include_freq: bool = True) -> pandas.DataFrame:
@@ -142,7 +142,7 @@ def get_spectrogram_data(data: pandas.DataFrame, polarization: str = 'plus', win
     return data
 
 
-def generate_audio_file(m1: float, m2: float, s1z: float, s2z: float, approximant: str = 'IMRPhenomD', polarization: str = 'plus', return_filepath: bool = False):
+def generate_audio_file(m1: float, m2: float, s1z: float, s2z: float, approximant: str = 'IMRPhenomD', polarization: str = 'plus', return_filepath: bool = False, shift_freq: bool = False):
     # Format unique filename for output .wav file
     file = f'assets/{m1:.1f}_{m2:.1f}_{s1z:.1f}_{s2z:.1f}_{approximant}_{polarization}.wav'
 
@@ -154,6 +154,30 @@ def generate_audio_file(m1: float, m2: float, s1z: float, s2z: float, approximan
 
     # Normalize amplitude array
     ys = ys / numpy.max(numpy.abs(ys))
+
+    # Scale amplitude array to reasonable volume
+    ys = ys * 2.0
+
+    # Shift frequency up by 400Hz if requested
+    if shift_freq:
+        ts = numpy.arange(0, len(ys)) / SAMPLE_RATE
+
+        # Compute FFT using scipy
+        Ys = numpy.fft.fft(ys)
+        fs = numpy.fft.fftfreq(len(ys), 1 / SAMPLE_RATE)
+
+        # Shift frequency, determine shift of 400 Hz in term of array roll
+        shift = int(200 // (fs[1] - fs[0]))
+        print(shift, ys.shape)
+        Ys = numpy.roll(Ys, shift)
+        # mute wrapped components
+        Ys[:shift] = 0
+
+        # Compute inverse FFT
+        ys = numpy.fft.ifft(Ys)
+        print(ys)
+        ys = numpy.real(ys)
+        print(ys)
 
     # Write audio file
     wavfile.write(file, int(SAMPLE_RATE), ys)
