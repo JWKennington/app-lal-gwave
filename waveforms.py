@@ -6,12 +6,15 @@ import lalsimulation
 import numpy
 import pandas
 import xarray
+from scipy.io import wavfile
 from scipy.signal import ShortTimeFFT, windows
 
 APPROXIMANTS = [
     'IMRPhenomD',
     'IMRPhenomPv2',
 ]
+
+SAMPLE_RATE = 256.0
 
 
 def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD', include_freq: bool = True) -> pandas.DataFrame:
@@ -70,7 +73,7 @@ def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, a
 
     # Make time-domain kwargs
     kwargs_td = kwargs.copy()
-    kwargs_td['deltaT'] = 1.0 / 256
+    kwargs_td['deltaT'] = 1.0 / SAMPLE_RATE
 
     # Make frequency-domain kwargs
     kwargs_fd = kwargs.copy()
@@ -137,6 +140,26 @@ def get_spectrogram_data(data: pandas.DataFrame, polarization: str = 'plus', win
     data = xarray.DataArray(Sxx, dims=['frequency', 'time'], coords={'time': ts, 'frequency': sft.f})
 
     return data
+
+
+def generate_audio_file(m1: float, m2: float, s1z: float, s2z: float, approximant: str = 'IMRPhenomD', polarization: str = 'plus', return_filepath: bool = False):
+    # Format unique filename for output .wav file
+    file = f'assets/{m1:.1f}_{m2:.1f}_{s1z:.1f}_{s2z:.1f}_{approximant}_{polarization}.wav'
+
+    # Get waveform data (time_domain only)
+    data = get_cbc_waveform(m1, m2, s1z, s2z, approximant, include_freq=False)
+
+    # Extract amplitude array
+    ys = data[(data['polarization'] == polarization) & (data['domain'] == 'time')]['strain'].values
+
+    # Normalize amplitude array
+    ys = ys / numpy.max(numpy.abs(ys))
+
+    # Write audio file
+    wavfile.write(file, int(SAMPLE_RATE), ys)
+
+    if return_filepath:
+        return file
 
 
 def get_fake_data(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD', duration: float = 60) -> pandas.DataFrame:
