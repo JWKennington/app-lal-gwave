@@ -1,5 +1,6 @@
 """This module provides a simplified interface to CBC waveforms using LALSuite.
 """
+from typing import Tuple
 
 import lal
 import lalsimulation
@@ -17,23 +18,8 @@ APPROXIMANTS = [
 SAMPLE_RATE = 512.0
 
 
-def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD', include_freq: bool = True) -> pandas.DataFrame:
-    """Get a CBC waveform for a given binary system.
-
-    Args:
-        m1:
-            float, mass of the first component in solar masses
-        m2:
-            float, mass of the second component in solar masses
-        s1z:
-            float, dimensionless spin of the first component
-        s2z:
-            float, dimensionless spin of the second component
-
-    Returns:
-        pandas.DataFrame:
-            A DataFrame with columns 'time', 'strain', and 'polarization'.
-    """
+def _waveform_base_kwargs(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD') -> dict:
+    """Helper func for base kwargs"""
     kwargs = {
         # Component masses
         'm1': m1,
@@ -71,45 +57,33 @@ def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, a
     kwargs['m1'] *= lal.MSUN_SI
     kwargs['m2'] *= lal.MSUN_SI
 
+    return kwargs
+
+
+def _waveform_td(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD') -> Tuple[lal.COMPLEX16FrequencySeries, ...]:
+    # Get waveform kwargs
+    kwargs = _waveform_base_kwargs(m1, m2, s1z, s2z, approximant)
+
     # Make time-domain kwargs
     kwargs_td = kwargs.copy()
     kwargs_td['deltaT'] = 1.0 / SAMPLE_RATE
+
+    return lalsimulation.SimInspiralTD(**kwargs_td)
+
+
+def _waveform_fd(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD') -> Tuple[lal.COMPLEX16FrequencySeries, ...]:
+    # Get waveform kwargs
+    kwargs = _waveform_base_kwargs(m1, m2, s1z, s2z, approximant)
 
     # Make frequency-domain kwargs
     kwargs_fd = kwargs.copy()
     kwargs_fd['f_max'] = 256.0
     kwargs_fd['deltaF'] = 1.0 / 64
 
-    hplus_td, hcross_td = lalsimulation.SimInspiralTD(**kwargs_td)
-
-    # Make array of time coordinates
-    ts = numpy.arange(0, len(hplus_td.data.data) * hplus_td.deltaT, hplus_td.deltaT)
-
-    data = pandas.concat([
-        pandas.DataFrame({'x': ts, 'strain': hplus_td.data.data}).assign(polarization='plus', domain='time', component='real'),
-        pandas.DataFrame({'x': ts, 'strain': hcross_td.data.data}).assign(polarization='cross', domain='time', component='real'),
-    ], axis=0)
-
-    if include_freq:
-        hplus_fd, hcross_fd = lalsimulation.SimInspiralFD(**kwargs_fd)
-
-        # Make array of frequency coordinates
-        fs = numpy.arange(0, len(hplus_fd.data.data) * hplus_fd.deltaF, hplus_fd.deltaF)
-
-        data_fd = pandas.concat([
-            pandas.DataFrame({'x': fs, 'strain': numpy.real(hplus_fd.data.data)}).assign(polarization='plus', domain='freq', component='real'),
-            pandas.DataFrame({'x': fs, 'strain': numpy.imag(hplus_fd.data.data)}).assign(polarization='plus', domain='freq', component='imag'),
-            pandas.DataFrame({'x': fs, 'strain': numpy.real(hcross_fd.data.data)}).assign(polarization='cross', domain='freq', component='real'),
-            pandas.DataFrame({'x': fs, 'strain': numpy.imag(hcross_fd.data.data)}).assign(polarization='cross', domain='freq', component='imag'),
-        ], axis=0)
-
-        data = pandas.concat([data, data_fd], axis=0)
-
-    return data
+    return lalsimulation.SimInspiralFD(**kwargs_fd)
 
 
-
-def waveform_mismatch(w1: lal.COMPLEX16FrequencySeries, w2: lal.COMPLEX16FrequencySeries) -> float:
+def _waveform_mismatch(w1: lal.COMPLEX16FrequencySeries, w2: lal.COMPLEX16FrequencySeries) -> float:
     x = numpy.copy(w1.data.data)
     y = numpy.copy(w2.data.data)
     if w1.epoch != w2.epoch or dt:
@@ -118,6 +92,47 @@ def waveform_mismatch(w1: lal.COMPLEX16FrequencySeries, w2: lal.COMPLEX16Frequen
     x /= norm(x)
     m = inner_product(x, y)
 
+
+def get_cbc_waveform(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD', include_freq: bool = True) -> pandas.DataFrame:
+    """Get a CBC waveform for a given binary system.
+
+    Args:
+        m1:
+            float, mass of the first component in solar masses
+        m2:
+            float, mass of the second component in solar masses
+        s1z:
+            float, dimensionless spin of the first component
+        s2z:
+            float, dimensionless spin of the second component
+
+    Returns:
+        pandas.DataFrame:
+            A DataFrame with columns 'time', 'strain', and 'polarization'.
+    """
+    # Get waveform data
+    hplus_td, hcross_td = _waveform_td(m1, m2, s1z, s2z, approximant)
+    ts = numpy.arange(0, len(hplus_td.data.data) * hplus_td.deltaT, hplus_td.deltaT)
+    data = pandas.concat([
+        pandas.DataFrame({'x': ts, 'strain': hplus_td.data.data}).assign(polarization='plus', domain='time', component='real'),
+        pandas.DataFrame({'x': ts, 'strain': hcross_td.data.data}).assign(polarization='cross', domain='time', component='real'),
+    ], axis=0)
+
+    if include_freq:
+        # Get frequency domain data
+        hplus_fd, hcross_fd = _waveform_fd(m1, m2, s1z, s2z, approximant)
+        fs = numpy.arange(0, len(hplus_fd.data.data) * hplus_fd.deltaF, hplus_fd.deltaF)
+        data_fd = pandas.concat([
+            pandas.DataFrame({'x': fs, 'strain': numpy.real(hplus_fd.data.data)}).assign(polarization='plus', domain='freq', component='real'),
+            pandas.DataFrame({'x': fs, 'strain': numpy.imag(hplus_fd.data.data)}).assign(polarization='plus', domain='freq', component='imag'),
+            pandas.DataFrame({'x': fs, 'strain': numpy.real(hcross_fd.data.data)}).assign(polarization='cross', domain='freq', component='real'),
+            pandas.DataFrame({'x': fs, 'strain': numpy.imag(hcross_fd.data.data)}).assign(polarization='cross', domain='freq', component='imag'),
+        ], axis=0)
+
+        # Concatenate the data
+        data = pandas.concat([data, data_fd], axis=0)
+
+    return data
 
 
 def get_spectrogram_data(data: pandas.DataFrame, polarization: str = 'plus', win_m: int = 128, win_std: int = 16) -> xarray.DataArray:
@@ -172,7 +187,6 @@ def generate_audio_file(m1: float, m2: float, s1z: float, s2z: float, approximan
 
     # Shift frequency up by 400Hz if requested
     if shift_freq:
-
         # Compute FFT using scipy
         Ys = numpy.fft.fft(ys)
         fs = numpy.fft.fftfreq(len(ys), 1 / SAMPLE_RATE)
@@ -195,7 +209,6 @@ def generate_audio_file(m1: float, m2: float, s1z: float, s2z: float, approximan
 
     if return_filepath:
         return file
-
 
 
 def get_mismatch_guess(m1: float, m2: float, s1z: float, s2z: float, approximant: str, polarization: str, guess_m1: float, guess_m2: float, guess_s1z: float, guess_s2z: float) -> float:
