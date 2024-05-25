@@ -1,12 +1,6 @@
 """This module defined the Plotly Dash App for the web interface.
 
 Game: Visual Parameter Estimation!
-
-Todos:
-
-- Add plots / table visual for game performance
-- Debug mismatch calculation (perfect parameters only get around 70% match)
-- Debug SNR calculation (confirm shape)
 """
 
 # TODO update buttons to share callback according to: https://dash.plotly.com/duplicate-callback-outputs
@@ -49,6 +43,7 @@ DIFFICULTY_NOISE_RATIO = {
     '5: Expert': 1.0,
 }
 
+GAME_DURATION = 20
 GAME_HISTORY = pandas.DataFrame(columns=['m1', 'm2', 's1z', 's2z', 'approximant', 'polarization',
                                          'guess_m1', 'guess_m2', 'guess_s1z', 'guess_s2z', 'match', 'mismatch', 'time'])
 GAME_EVENT_PARAMS = None
@@ -60,6 +55,7 @@ server = app.server
 
 fig_data = plot.cbc_time_domain(GAME_EVENT_DATA, scale=True)
 fig_snr = plot.snr_time_domain(waveforms.get_snr_data(m1=50.0, m2=50.0, s1z=0.0, s2z=0.0, data=GAME_EVENT_DATA))
+fig_history = plot.game_history(GAME_HISTORY)
 
 app.layout = dbc.Container(fluid=False, children=[
 
@@ -99,11 +95,11 @@ app.layout = dbc.Container(fluid=False, children=[
                 dbc.Row(children=[
                     dbc.Col(children=[
                         dbc.Label("M1 (M_sol)"),
-                        dcc.Slider(min=MASS_MIN, max=MASS_MAX, step=MASS_STEP, value=100.0, id='slider-m1'),
+                        dcc.Slider(min=MASS_MIN, max=MASS_MAX, step=MASS_STEP, value=100.0, id='slider-m1', updatemode='drag'),
                     ], md=8),
                     dbc.Col(children=[
                         dbc.Label("S1z"),
-                        dcc.Slider(min=SPIN_MIN, max=SPIN_MAX, step=SPIN_STEP, value=0.0, id='slider-s1z'),
+                        dcc.Slider(min=SPIN_MIN, max=SPIN_MAX, step=SPIN_STEP, value=0.0, id='slider-s1z', updatemode='drag'),
                     ], md=4),
                 ]),
 
@@ -111,11 +107,11 @@ app.layout = dbc.Container(fluid=False, children=[
                 dbc.Row(children=[
                     dbc.Col(children=[
                         dbc.Label("M2 (M_sol)"),
-                        dcc.Slider(min=MASS_MIN, max=MASS_MAX, step=MASS_STEP, value=100.0, id='slider-m2'),
+                        dcc.Slider(min=MASS_MIN, max=MASS_MAX, step=MASS_STEP, value=100.0, id='slider-m2', updatemode='drag'),
                     ], md=8),
                     dbc.Col(children=[
                         dbc.Label("S2z"),
-                        dcc.Slider(min=SPIN_MIN, max=SPIN_MAX, step=SPIN_STEP, value=0.0, id='slider-s2z'),
+                        dcc.Slider(min=SPIN_MIN, max=SPIN_MAX, step=SPIN_STEP, value=0.0, id='slider-s2z', updatemode='drag'),
                     ], md=4),
                 ]),
             ]),
@@ -134,6 +130,9 @@ app.layout = dbc.Container(fluid=False, children=[
                         ], md=12),
                     ]),
                 ], md=7),
+                dbc.Col(children=[
+                    dcc.Graph(id='graph-data-history', figure=fig_history),
+                ], md=5),
             ]),
 
         ]),
@@ -195,7 +194,7 @@ def new_event(n_clicks, difficulty):
     GAME_EVENT_START = datetime.datetime.now()
 
     # Update the waveform plot
-    data = waveforms.get_fake_data(duration=60, noise_scale=DIFFICULTY_NOISE_RATIO[difficulty], **GAME_EVENT_PARAMS)
+    data = waveforms.get_fake_data(duration=GAME_DURATION, noise_scale=DIFFICULTY_NOISE_RATIO[difficulty], **GAME_EVENT_PARAMS)
     GAME_EVENT_DATA = data
 
     # Make the plot
@@ -206,6 +205,7 @@ def new_event(n_clicks, difficulty):
 
 @app.callback(
     Output('placeholder3', 'children'),
+    Output('graph-data-history', 'figure'),
     Input('button-lock-guess', 'n_clicks'),
     State('slider-m1', 'value'),
     State('slider-m2', 'value'),
@@ -215,12 +215,12 @@ def new_event(n_clicks, difficulty):
 def lock_guess(n_clicks, m1, m2, s1z, s2z):
     """Reset the game history."""
     if n_clicks is None or n_clicks == 0:
-        return
+        return None, fig_history
 
     print('Lock Guess')
     global GAME_EVENT_START, GAME_EVENT_PARAMS, GAME_HISTORY
     if GAME_EVENT_PARAMS is None or GAME_EVENT_START is None:
-        return
+        return None, fig_history
 
     guess_duration = (datetime.datetime.now() - GAME_EVENT_START).total_seconds()
     guess_params = {
@@ -231,8 +231,8 @@ def lock_guess(n_clicks, m1, m2, s1z, s2z):
     }
     event_params = GAME_EVENT_PARAMS.copy()
     event_params.pop('polarization')
-    guess_match = waveforms._waveform_match(w1=waveforms._waveform_fd(**event_params)[0 if GAME_EVENT_PARAMS['polarization'] == 'plus' else 1],
-                                            w2=waveforms._waveform_fd(**guess_params)[0 if GAME_EVENT_PARAMS['polarization'] == 'plus' else 1])
+    guess_match = waveforms._match_at_coords(m1=event_params['m1'], m2=event_params['m2'], s1z=event_params['s1z'], s2z=event_params['s2z'],
+                                             guess_m1=guess_params['m1'], guess_m2=guess_params['m2'], guess_s1z=guess_params['s1z'], guess_s2z=guess_params['s2z'])
 
     # Record the guess
     GAME_HISTORY = pandas.concat([GAME_HISTORY, pandas.DataFrame({
@@ -251,13 +251,11 @@ def lock_guess(n_clicks, m1, m2, s1z, s2z):
         'time': guess_duration,
     }, index=[0])], axis=0)
 
-    print(GAME_HISTORY)
-
     # Reset the event state
     GAME_EVENT_START = None
     GAME_EVENT_PARAMS = None
 
-    # TODO update the game performance plots!
+    return None, plot.game_history(GAME_HISTORY)
 
 
 @app.callback(

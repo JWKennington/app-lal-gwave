@@ -128,9 +128,7 @@ def snr_time_domain(data: pandas.DataFrame):
     # Scale y axis
     max_snr = data['y'].abs().max()
     if max_snr > 0:
-        print(max_snr)
         pow10 = numpy.round(numpy.log10(max_snr))
-        print(pow10)
         scale = 1 / 10 ** pow10
         y_label = f'SNR x 10^{pow10}'
         data['y'] *= scale
@@ -142,6 +140,32 @@ def snr_time_domain(data: pandas.DataFrame):
     # Set axis labels
     fig.update_xaxes(title_text='Time (s)')
     fig.update_yaxes(title_text=y_label)
+
+    # Set minimal margin
+    fig.update_layout(margin=PLOT_MARGIN)
+
+    return fig
+
+
+def game_history(data: pandas.DataFrame):
+    """Plot the game history of guesses and matches.
+
+    Args:
+        data:
+            pandas.DataFrame, game history data with columns: m1, m2, s1z, s2z, approximant, polarization, guess_m1, guess_m2, guess_s1z, guess_s2z, match, mismatch, time
+    """
+    print('Plotting game history', data)
+    fig = express.scatter(data, x='time', y='match',
+                          height=2 * HEIGHT_LINE,
+                          width=2 * HEIGHT_LINE)
+
+    # Set axis labels
+    fig.update_xaxes(title_text='Time (s)')
+    fig.update_yaxes(title_text='Match')
+
+    # Set axis limits
+    fig.update_xaxes(range=[-0.1, max(60, data['time'].max() * 1.1)])
+    fig.update_yaxes(range=[-0.1, 1.1])
 
     # Set minimal margin
     fig.update_layout(margin=PLOT_MARGIN)

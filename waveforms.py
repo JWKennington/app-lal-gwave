@@ -16,7 +16,7 @@ APPROXIMANTS = [
 ]
 
 SAMPLE_RATE = 512.0
-DATA_DURATION = 60.0
+DATA_DURATION = 20.0
 
 
 def _waveform_base_kwargs(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD') -> dict:
@@ -113,6 +113,14 @@ def _waveform_match(w1: lal.COMPLEX16FrequencySeries, w2: lal.COMPLEX16Frequency
     return m
 
 
+def _match_at_coords(m1: float, m2: float, s1z: float, s2z: float, guess_m1: float, guess_m2: float, guess_s1z: float, guess_s2z: float, approximant: str = 'IMRPhenomD', polarization: str = 'plus') -> float:
+    """Get the mismatch between the guess and the true waveform."""
+    w1 = _waveform_fd(m1, m2, s1z, s2z, approximant)[0 if polarization == 'plus' else 1]
+    w2 = _waveform_fd(guess_m1, guess_m2, guess_s1z, guess_s2z, approximant)[0 if polarization == 'plus' else 1]
+
+    return _waveform_match(w1, w2)
+
+
 def _gen_data(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approximant: str = 'IMRPhenomD', duration: float = DATA_DURATION, t0: float = None, polarization: str = 'plus') -> numpy.ndarray:
     """Generate the CBC waveform data."""
     # Generate array of zeros of length duration at sample rate
@@ -125,8 +133,10 @@ def _gen_data(m1: float, m2: float, s1z: float = 0.0, s2z: float = 0.0, approxim
 
     # Find start time array index
     if t0 is None:
-        t0 = duration / 2
-    t0_idx = int(t0 * SAMPLE_RATE)
+        mid_idx = len(ts) // 2
+        t0_idx = mid_idx - len(strain) // 2
+    else:
+        t0_idx = int(t0 * SAMPLE_RATE)
 
     # Inject the waveform data
     data[t0_idx:t0_idx + len(strain)] = strain
@@ -245,16 +255,13 @@ def generate_audio_file(m1: float, m2: float, s1z: float, s2z: float, approximan
 
         # Shift frequency, determine shift of 400 Hz in term of array roll
         shift = int(200 // (fs[1] - fs[0]))
-        print(shift, ys.shape)
         Ys = numpy.roll(Ys, shift)
         # mute wrapped components
         Ys[:shift] = 0
 
         # Compute inverse FFT
         ys = numpy.fft.ifft(Ys)
-        print(ys)
         ys = numpy.real(ys)
-        print(ys)
 
     # Write audio file
     wavfile.write(file, int(SAMPLE_RATE), ys)
@@ -313,7 +320,7 @@ def get_snr_data(m1: float, m2: float, s1z: float, s2z: float, data: pandas.Data
     ys = data['strain'].values
 
     # Compute signal amplitude using time convolution of template array through strain array
-    sigamp = numpy.convolve(ys, template, mode='valid')
+    sigamp = numpy.convolve(ys, template[::-1], mode='valid')
     sigamp_ts = ts[len(ts) - len(sigamp):]
 
     # Extend sigamp array to match length of strain array padding at the beginning of the array
@@ -325,10 +332,10 @@ def get_snr_data(m1: float, m2: float, s1z: float, s2z: float, data: pandas.Data
     # Extend snr array to match length of strain array padding at the beginning and end
     pad_front = (len(ts) - len(sigamp)) // 2
     pad_end = len(ts) - len(sigamp) - pad_front
-    snr = numpy.pad(snr, (pad_front, pad_end), constant_values=(snr[0], snr[-1]))
+    snr = numpy.pad(snr, (pad_front + pad_end, 0), constant_values=(snr[0], snr[-1]))
 
     # Package as dataframe
     data = pandas.DataFrame({'x': ts, 'y': snr})
-    print(data['y'].describe())
 
     return data
+
