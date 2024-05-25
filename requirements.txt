@@ -1,6 +1,10 @@
 dash
+dash_daq
 dash-bootstrap-components
 gunicorn
 lalsuite
+numpy
 pandas
 plotly
+scipy
+xarray
