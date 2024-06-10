@@ -48,7 +48,7 @@ GAME_EVENT_PARAMS = None
 GAME_EVENT_START = None
 GAME_EVENT_DATA = waveforms.get_fake_data(duration=60, noise_scale=1.0, signal_scale=0.0, m1=50.0, m2=50.0, s1z=0.0, s2z=0.0)
 
-app = dash.Dash('CBC Waveform Game', external_stylesheets=[dbc.themes.BOOTSTRAP], assets_folder='assets', assets_url_path='/assets/')
+app = dash.Dash('CBC PE Level 4: SNR', external_stylesheets=[dbc.themes.BOOTSTRAP], assets_folder='assets', assets_url_path='/assets/')
 server = app.server
 
 fig_data = plot.cbc_time_domain(GAME_EVENT_DATA, scale=True)
