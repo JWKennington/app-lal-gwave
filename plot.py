@@ -95,7 +95,7 @@ def cbc_freq_domain(data: pandas.DataFrame, polarization='plus'):
     return fig
 
 
-def cbc_spectrogram(data: xarray.DataArray):
+def cbc_spectrogram(data: xarray.DataArray, height=HEIGHT_IMSHOW, width=WIDTH_IMSHOW):
     """Plot a spectrogram of a CBC waveform for a given binary system.
 
     Args:
@@ -103,8 +103,8 @@ def cbc_spectrogram(data: xarray.DataArray):
             xarray.DataArray, a spectrogram of a CBC waveform
     """
     fig = express.imshow(data, origin='lower',
-                         height=HEIGHT_IMSHOW,
-                         width=WIDTH_IMSHOW)
+                         height=height,
+                         width=width)
 
     # Set axis labels
     fig.update_xaxes(title_text='Time (s)')
