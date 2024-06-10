@@ -238,6 +238,10 @@ def generate_audio_file(m1: float, m2: float, s1z: float, s2z: float, approximan
     # Get waveform data (time_domain only)
     data = get_cbc_waveform(m1, m2, s1z, s2z, approximant, include_freq=False)
 
+    return generate_audio_file_from_data(file, data, polarization, return_filepath, shift_freq)
+
+
+def generate_audio_file_from_data(file: str, data: pandas.DataFrame, polarization: str = 'plus', return_filepath: bool = False, shift_freq: bool = False):
     # Extract amplitude array
     ys = data[(data['polarization'] == polarization) & (data['domain'] == 'time')]['strain'].values
 
