@@ -1,4 +1,4 @@
-"""This module defined the Plotly Dash App for the web interface.
+"""GWave Game Application 0: Waveform Explorer
 """
 
 import dash

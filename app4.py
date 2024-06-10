@@ -1,6 +1,4 @@
-"""This module defined the Plotly Dash App for the web interface.
-
-Game: Visual Parameter Estimation!
+"""GWave Game Application 4: Parameter Estimation Game with SNR
 """
 
 # TODO update buttons to share callback according to: https://dash.plotly.com/duplicate-callback-outputs
@@ -12,7 +10,7 @@ import dash
 import dash_bootstrap_components as dbc
 import numpy.random
 import pandas
-from dash import dcc, Output, Input, html, State
+from dash import dcc, Output, Input, html, State, ctx
 
 import plot
 import waveforms
@@ -85,7 +83,7 @@ app.layout = dbc.Container(fluid=False, children=[
                     dbc.Col(children=[
                         dbc.Label("Difficulty"),
                         dcc.Dropdown(options=list(sorted(DIFFICULTY_NOISE_RATIO.keys())),
-                                     value='2: Easy', id='dropdown-difficulty'),
+                                     value='3: Medium', id='dropdown-difficulty'),
                     ], md=2),
 
                     # Add button to generate random parameters for fake data
@@ -146,116 +144,131 @@ app.layout = dbc.Container(fluid=False, children=[
 
 
 @app.callback(
-    Output('placeholder', 'children'),
-    Input('button-new-game', 'n_clicks'),
-)
-def new_game(n_clicks):
-    """Reset the game history."""
-    if n_clicks is None or n_clicks == 0:
-        return
-    print('New Game')
-    # Yeah, I know 'global' is bad, but it's either that or embed the game state in useless widgets, so...
-    global GAME_EVENT_START, GAME_EVENT_PARAMS
-    GAME_HISTORY.drop(GAME_HISTORY.index, inplace=True)
-    GAME_EVENT_PARAMS = None
-    GAME_EVENT_START = None
-
-
-@app.callback(
-    Output('placeholder2', 'children'),
+    # Combined outputs for all buttons
     Output('graph-data-raw', 'figure'),
-    Input('button-new-event', 'n_clicks'),
-    State('dropdown-difficulty', 'value'),
-)
-def new_event(n_clicks, difficulty):
-    """Reset the game history."""
-    if n_clicks is None or n_clicks == 0:
-        return None, fig_data
-    print('New Event')
-    global GAME_EVENT_START, GAME_EVENT_PARAMS, GAME_EVENT_DATA
-    GAME_EVENT_PARAMS = {
-        'm1': numpy.random.rand() * (MASS_MAX - MASS_MIN) + MASS_MIN,
-        'm2': numpy.random.rand() * (MASS_MAX - MASS_MIN) + MASS_MIN,
-        's1z': numpy.random.rand() * (SPIN_MAX - SPIN_MIN) + SPIN_MIN,
-        's2z': numpy.random.rand() * (SPIN_MAX - SPIN_MIN) + SPIN_MIN,
-        'approximant': 'IMRPhenomPv2',
-        'polarization': 'plus',
-    }
-
-    # Round m1, m2, s1z, s2z to nearest slider values
-    GAME_EVENT_PARAMS['m1'] = round(GAME_EVENT_PARAMS['m1'] / MASS_STEP) * MASS_STEP
-    GAME_EVENT_PARAMS['m2'] = round(GAME_EVENT_PARAMS['m2'] / MASS_STEP) * MASS_STEP
-    GAME_EVENT_PARAMS['s1z'] = round(GAME_EVENT_PARAMS['s1z'] / SPIN_STEP) * SPIN_STEP
-    GAME_EVENT_PARAMS['s2z'] = round(GAME_EVENT_PARAMS['s2z'] / SPIN_STEP) * SPIN_STEP
-
-    print(GAME_EVENT_PARAMS)
-
-    # Update game params
-    GAME_EVENT_START = datetime.datetime.now()
-
-    # Update the waveform plot
-    data = waveforms.get_fake_data(duration=GAME_DURATION, noise_scale=DIFFICULTY_NOISE_RATIO[difficulty], **GAME_EVENT_PARAMS)
-    GAME_EVENT_DATA = data
-
-    # Make the plot
-    fig = plot.cbc_time_domain(data)
-
-    return None, fig
-
-
-@app.callback(
-    Output('placeholder3', 'children'),
     Output('graph-data-history', 'figure'),
+    # All buttons serve as inputs (dispatched based on ctx.triggered_id)
+    Input('button-new-game', 'n_clicks'),
+    Input('button-new-event', 'n_clicks'),
     Input('button-lock-guess', 'n_clicks'),
+    # Include all necessary states
+    State('dropdown-difficulty', 'value'),
     State('slider-m1', 'value'),
     State('slider-m2', 'value'),
     State('slider-s1z', 'value'),
     State('slider-s2z', 'value'),
+    State('graph-data-raw', 'figure'),
+    State('graph-data-history', 'figure'),
 )
-def lock_guess(n_clicks, m1, m2, s1z, s2z):
-    """Reset the game history."""
-    if n_clicks is None or n_clicks == 0:
-        return None, fig_history
+def button_callback(n_clicks_new_game, n_clicks_new_event, n_clicks_lock_guess, difficulty, m1, m2, s1z, s2z, fig_data, fig_history):
+    triggered_id = ctx.triggered_id
 
+    if triggered_id == 'button-new-game':
+        return sub_callback_new_game(n_clicks_new_game, fig_data, fig_history)
+
+    elif triggered_id == 'button-new-event':
+        return sub_callback_new_event(n_clicks_new_event, difficulty, fig_data, fig_history)
+
+    elif triggered_id == 'button-lock-guess':
+        return sub_callback_lock_guess(n_clicks_lock_guess, m1, m2, s1z, s2z, fig_data, fig_history)
+
+    else:
+        print('Unknown button', triggered_id)
+        return fig_data, fig_history
+
+
+def sub_callback_new_game(n_clicks, fig_data, fig_history):
+    print('New Game')
+    # Only reset the game history if the button was clicked, not on load
+    if n_clicks is not None and n_clicks > 0:
+        global GAME_HISTORY, GAME_EVENT_PARAMS, GAME_EVENT_START
+        GAME_HISTORY.drop(GAME_HISTORY.index, inplace=True)
+        GAME_EVENT_PARAMS = None
+        GAME_EVENT_START = None
+
+        fig_history = plot.game_history(GAME_HISTORY)
+
+    return fig_data, fig_history
+
+
+def sub_callback_new_event(n_clicks, difficulty, fig_data, fig_history):
+    print('New Event')
+    if n_clicks is not None and n_clicks > 0:
+        global GAME_EVENT_START, GAME_EVENT_PARAMS, GAME_EVENT_DATA
+        GAME_EVENT_PARAMS = {
+            'm1': numpy.random.rand() * (MASS_MAX - MASS_MIN) + MASS_MIN,
+            'm2': numpy.random.rand() * (MASS_MAX - MASS_MIN) + MASS_MIN,
+            's1z': numpy.random.rand() * (SPIN_MAX - SPIN_MIN) + SPIN_MIN,
+            's2z': numpy.random.rand() * (SPIN_MAX - SPIN_MIN) + SPIN_MIN,
+            'approximant': 'IMRPhenomPv2',
+            'polarization': 'plus',
+        }
+
+        # Round m1, m2, s1z, s2z to nearest slider values
+        GAME_EVENT_PARAMS['m1'] = round(GAME_EVENT_PARAMS['m1'] / MASS_STEP) * MASS_STEP
+        GAME_EVENT_PARAMS['m2'] = round(GAME_EVENT_PARAMS['m2'] / MASS_STEP) * MASS_STEP
+        GAME_EVENT_PARAMS['s1z'] = round(GAME_EVENT_PARAMS['s1z'] / SPIN_STEP) * SPIN_STEP
+        GAME_EVENT_PARAMS['s2z'] = round(GAME_EVENT_PARAMS['s2z'] / SPIN_STEP) * SPIN_STEP
+
+        print(GAME_EVENT_PARAMS)
+
+        # Update game params
+        GAME_EVENT_START = datetime.datetime.now()
+
+        # Update the waveform plot
+        data = waveforms.get_fake_data(duration=GAME_DURATION, noise_scale=DIFFICULTY_NOISE_RATIO[difficulty], **GAME_EVENT_PARAMS)
+        GAME_EVENT_DATA = data
+
+        # Make the plot
+        fig_data = plot.cbc_time_domain(data)
+
+    return fig_data, fig_history
+
+
+def sub_callback_lock_guess(n_clicks, m1, m2, s1z, s2z, fig_data, fig_history):
     print('Lock Guess')
-    global GAME_EVENT_START, GAME_EVENT_PARAMS, GAME_HISTORY
-    if GAME_EVENT_PARAMS is None or GAME_EVENT_START is None:
-        return None, fig_history
+    if n_clicks is not None and n_clicks > 0:
+        global GAME_EVENT_START, GAME_EVENT_PARAMS, GAME_HISTORY
+        if GAME_EVENT_PARAMS is None or GAME_EVENT_START is None:
+            return fig_data, fig_history
 
-    guess_duration = (datetime.datetime.now() - GAME_EVENT_START).total_seconds()
-    guess_params = {
-        'm1': m1,
-        'm2': m2,
-        's1z': s1z,
-        's2z': s2z,
-    }
-    event_params = GAME_EVENT_PARAMS.copy()
-    event_params.pop('polarization')
-    guess_match = waveforms._match_at_coords(m1=event_params['m1'], m2=event_params['m2'], s1z=event_params['s1z'], s2z=event_params['s2z'],
-                                             guess_m1=guess_params['m1'], guess_m2=guess_params['m2'], guess_s1z=guess_params['s1z'], guess_s2z=guess_params['s2z'])
+        guess_duration = (datetime.datetime.now() - GAME_EVENT_START).total_seconds()
+        guess_params = {
+            'm1': m1,
+            'm2': m2,
+            's1z': s1z,
+            's2z': s2z,
+        }
+        event_params = GAME_EVENT_PARAMS.copy()
+        event_params.pop('polarization')
+        guess_match = waveforms._match_at_coords(m1=event_params['m1'], m2=event_params['m2'], s1z=event_params['s1z'], s2z=event_params['s2z'],
+                                                 guess_m1=guess_params['m1'], guess_m2=guess_params['m2'], guess_s1z=guess_params['s1z'], guess_s2z=guess_params['s2z'])
 
-    # Record the guess
-    GAME_HISTORY = pandas.concat([GAME_HISTORY, pandas.DataFrame({
-        'm1': event_params['m1'],
-        'm2': event_params['m2'],
-        's1z': event_params['s1z'],
-        's2z': event_params['s2z'],
-        'approximant': event_params['approximant'],
-        'polarization': GAME_EVENT_PARAMS['polarization'],
-        'guess_m1': guess_params['m1'],
-        'guess_m2': guess_params['m2'],
-        'guess_s1z': guess_params['s1z'],
-        'guess_s2z': guess_params['s2z'],
-        'match': guess_match,
-        'mismatch': 1 - guess_match,
-        'time': guess_duration,
-    }, index=[0])], axis=0)
+        # Record the guess
+        GAME_HISTORY = pandas.concat([GAME_HISTORY, pandas.DataFrame({
+            'm1': event_params['m1'],
+            'm2': event_params['m2'],
+            's1z': event_params['s1z'],
+            's2z': event_params['s2z'],
+            'approximant': event_params['approximant'],
+            'polarization': GAME_EVENT_PARAMS['polarization'],
+            'guess_m1': guess_params['m1'],
+            'guess_m2': guess_params['m2'],
+            'guess_s1z': guess_params['s1z'],
+            'guess_s2z': guess_params['s2z'],
+            'match': guess_match,
+            'mismatch': 1 - guess_match,
+            'time': guess_duration,
+        }, index=[0])], axis=0)
 
-    # Reset the event state
-    GAME_EVENT_START = None
-    GAME_EVENT_PARAMS = None
+        # Reset the event state
+        GAME_EVENT_START = None
+        GAME_EVENT_PARAMS = None
 
-    return None, plot.game_history(GAME_HISTORY)
+        # Update the history plot
+        fig_history = plot.game_history(GAME_HISTORY)
+
+    return fig_data, fig_history
 
 
 @app.callback(
