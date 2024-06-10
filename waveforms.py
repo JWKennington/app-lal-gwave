@@ -315,6 +315,9 @@ def get_snr_data(m1: float, m2: float, s1z: float, s2z: float, data: pandas.Data
     hplus_td, hcross_td = _waveform_td(m1, m2, s1z, s2z)
     template = hplus_td.data.data
 
+    # Normalize template
+    template = template / _waveform_norm(template)
+
     # Extract detector data
     ts = data['x'].values
     ys = data['strain'].values
@@ -326,8 +329,14 @@ def get_snr_data(m1: float, m2: float, s1z: float, s2z: float, data: pandas.Data
     # Extend sigamp array to match length of strain array padding at the beginning of the array
     # sigamp = numpy.pad(sigamp, (len(ts) - len(sigamp), 0))
 
+    # Compute denominator from purely noisy part
+    noise_idx = len(ys) // 3
+    noise = ys[:noise_idx]
+    noise_var = numpy.mean(noise ** 2)
+
+
     # Compute SNR
-    snr = numpy.log10(sigamp ** 2 / numpy.sum(template ** 2))
+    snr = sigamp ** 2 / noise_var
 
     # Extend snr array to match length of strain array padding at the beginning and end
     pad_front = (len(ts) - len(sigamp)) // 2

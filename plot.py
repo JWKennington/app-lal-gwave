@@ -126,12 +126,12 @@ def snr_time_domain(data: pandas.DataFrame):
     data = data.copy()
 
     # Scale y axis
-    max_snr = data['y'].abs().max()
-    if max_snr > 0:
-        pow10 = numpy.round(numpy.log10(max_snr))
-        scale = 1 / 10 ** pow10
-        y_label = f'SNR x 10^{pow10}'
-        data['y'] *= scale
+    # max_snr = data['y'].abs().max()
+    # if max_snr > 0:
+    #     pow10 = numpy.round(numpy.log10(max_snr))
+    #     scale = 1 / 10 ** pow10
+    #     y_label = f'SNR x 10^{pow10}'
+    #     data['y'] *= scale
 
     fig = express.line(data, x='x', y='y',
                        height=HEIGHT_LINE,
@@ -139,7 +139,10 @@ def snr_time_domain(data: pandas.DataFrame):
 
     # Set axis labels
     fig.update_xaxes(title_text='Time (s)')
-    fig.update_yaxes(title_text=y_label)
+    fig.update_yaxes(title_text='SNR')
+
+    # Set y-axis to be logscale
+    fig.update_yaxes(type='log')
 
     # Set minimal margin
     fig.update_layout(margin=PLOT_MARGIN)
@@ -157,7 +160,11 @@ def game_history(data: pandas.DataFrame):
     print('Plotting game history', data)
     fig = express.scatter(data, x='time', y='match',
                           height=2 * HEIGHT_LINE,
-                          width=2 * HEIGHT_LINE)
+                          width=2 * HEIGHT_LINE,
+                          opacity=0.6)
+
+    # Update point size
+    fig.update_traces(marker=dict(size=12))
 
     # Set axis labels
     fig.update_xaxes(title_text='Time (s)')
