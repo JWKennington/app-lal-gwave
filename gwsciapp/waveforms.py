@@ -8,15 +8,17 @@ import numpy
 import pandas
 import scipy
 import xarray
+from packaging.version import Version
 from scipy.io import wavfile
 from scipy.signal import windows
 
 # Cross version compat for legacy scipy deps in LAL world envs
-if scipy.__version__ < '1.12.0':
+if Version(scipy.__version__) < Version('1.12.0'):
     ShortTimeFFT = None
     from scipy.signal import spectrogram as _spectrogram
 else:
     from scipy.signal import ShortTimeFFT
+
     _spectrogram = None
 
 APPROXIMANTS = [
@@ -337,7 +339,6 @@ def get_snr_data(m1: float, m2: float, s1z: float, s2z: float, data: pandas.Data
     noise = ys[:noise_idx]
     noise_var = numpy.mean(noise ** 2)
 
-
     # Compute SNR
     snr = sigamp ** 2 / noise_var
 
@@ -371,5 +372,3 @@ def spectrogram(win_m, win_std, ts, ys):
         fs = sft.f
 
     return fs, ts, Sxx
-
-
