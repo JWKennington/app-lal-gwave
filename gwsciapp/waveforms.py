@@ -356,7 +356,7 @@ def get_snr_data(m1: float, m2: float, s1z: float, s2z: float, data: pandas.Data
 def spectrogram(win_m, win_std, ts, ys):
     """Helper function for cross-version compat with ShortTimeFFT"""
     if ShortTimeFFT is None:
-        fs, t, Sxx = _spectrogram(x=ys, fs=1 / (ts[1] - ts[0]), window='gaussian', nperseg=win_m, noverlap=win_std, scaling='spectrum')
+        fs, t, Sxx = _spectrogram(x=ys, fs=1 / (ts[1] - ts[0]), window=('gaussian', win_m, win_std), scaling='spectrum')
     else:
         # Get the spectrogram using ShortTimeFFT spectrogram
         win = windows.gaussian(M=win_m, std=win_std)
