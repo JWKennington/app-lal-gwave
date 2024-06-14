@@ -26,7 +26,9 @@ BACKGROUND_WHITE = {
     'background-color': 'white',
 }
 
-app = dash.Dash('CBC Waveform Explorer', external_stylesheets=[dbc.themes.BOOTSTRAP], assets_folder='assets', assets_url_path='/assets/')
+app = dash.Dash('CBC Waveform Explorer',
+                external_stylesheets=[dbc.themes.BOOTSTRAP], assets_folder='assets', assets_url_path='/assets/',
+                url_base_pathname='/foo/jmk7376/')
 server = app.server
 
 data = waveforms.get_cbc_waveform(50.0, 50.0, 0.0, 0.0)
