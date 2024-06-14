@@ -194,4 +194,4 @@ def update_waveform(m1, m2, s1z, s2z, approximant, polarization):
 
 
 if __name__ == "__main__":
-    app.run_server(debug=False)
+    app.run_server(debug=False, host='0.0.0.0', port=80)
