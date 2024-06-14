@@ -6,8 +6,7 @@ import dash_bootstrap_components as dbc
 import dash_daq as daq
 from dash import dcc, Output, Input, html, State
 
-import plot
-import waveforms
+from gwsciapp import plot, waveforms
 
 # Configuration constants for app input boundaries
 MASS_MIN = 1.0

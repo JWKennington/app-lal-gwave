@@ -13,8 +13,7 @@ import numpy.random
 import pandas
 from dash import dcc, Output, Input, html, State, ctx
 
-import plot
-import waveforms
+from gwsciapp import plot, waveforms
 
 # Configuration constants for app input boundaries
 MASS_MIN = 1.0
