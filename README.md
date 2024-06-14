@@ -1,8 +1,8 @@
-# App: LAL Waveforms
+# GWSci Apps
 
-Interactive App for Rendering Gravitational Waveforms
+Interactive Apps for exploring gravitational waveforms, detection data analysis, and more.
 
 
 ## Notes for Deployment
 
-This app is deployed using Render.
+These apps are deployed using [Render.com](render.com).

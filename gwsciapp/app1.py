@@ -72,13 +72,13 @@ app.layout = dbc.Container(fluid=False, children=[
                         dbc.Label("CBC PE Level 1: Visual", style={'font-size': '24px'}),
                     ], md=4),
                     dbc.Col(children=[
-                        html.Button('New Game', id='button-new-game', n_clicks=0),
+                        dbc.Button('New Game', id='button-new-game', n_clicks=0),
                     ], md=2),
                     dbc.Col(children=[
-                        html.Button('New Event', id='button-new-event', n_clicks=0),
+                        dbc.Button('New Event', id='button-new-event', n_clicks=0),
                     ], md=2),
                     dbc.Col(children=[
-                        html.Button('Lock Guess', id='button-lock-guess', n_clicks=0),
+                        dbc.Button('Lock Guess', id='button-lock-guess', n_clicks=0),
                     ], md=2),
                     dbc.Col(children=[
                         dbc.Label("Difficulty"),
