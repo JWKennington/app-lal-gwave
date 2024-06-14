@@ -6,9 +6,18 @@ import lal
 import lalsimulation
 import numpy
 import pandas
+import scipy
 import xarray
 from scipy.io import wavfile
-from scipy.signal import ShortTimeFFT, windows
+from scipy.signal import windows
+
+# Cross version compat for legacy scipy deps in LAL world envs
+if scipy.__version__ < '1.12.0':
+    ShortTimeFFT = None
+    from scipy.signal import spectrogram as _spectrogram
+else:
+    from scipy.signal import ShortTimeFFT
+    _spectrogram = None
 
 APPROXIMANTS = [
     'IMRPhenomD',
@@ -213,20 +222,10 @@ def get_spectrogram_data(data: pandas.DataFrame, polarization: str = 'plus', win
     ts = data['x'].values
     ys = data['strain'].values
 
-    # Get the spectrogram using ShortTimeFFT spectrogram
-    win = windows.gaussian(M=win_m, std=win_std)
-    sft = ShortTimeFFT(win=win, hop=2, fs=1 / (ts[1] - ts[0]), scale_to='psd')
-    Sxx = sft.spectrogram(ys)
-
-    # Reshape the data
-    Sxx = numpy.log10(Sxx)
-    Sxx = numpy.clip(Sxx, numpy.percentile(Sxx, 5), numpy.percentile(Sxx, 95))
-
-    # Compute time coordinates
-    ts = numpy.arange(0, Sxx.shape[1]) * sft.hop / sft.fs
+    fs, ts, Sxx = spectrogram(win_m, win_std, ts, ys)
 
     # Make the data with time and frequency coordinates
-    data = xarray.DataArray(Sxx, dims=['frequency', 'time'], coords={'time': ts, 'frequency': sft.f})
+    data = xarray.DataArray(Sxx, dims=['frequency', 'time'], coords={'time': ts, 'frequency': fs})
 
     return data
 
@@ -351,4 +350,26 @@ def get_snr_data(m1: float, m2: float, s1z: float, s2z: float, data: pandas.Data
     data = pandas.DataFrame({'x': ts, 'y': snr})
 
     return data
+
+
+def spectrogram(win_m, win_std, ts, ys):
+    """Helper function for cross-version compat with ShortTimeFFT"""
+    if ShortTimeFFT is None:
+        fs, t, Sxx = _spectrogram(x=ys, fs=1 / (ts[1] - ts[0]), window='gaussian', nperseg=win_m, noverlap=win_std, scaling='spectrum')
+    else:
+        # Get the spectrogram using ShortTimeFFT spectrogram
+        win = windows.gaussian(M=win_m, std=win_std)
+        sft = ShortTimeFFT(win=win, hop=2, fs=1 / (ts[1] - ts[0]), scale_to='psd')
+        Sxx = sft.spectrogram(ys)
+
+        # Reshape the data
+        Sxx = numpy.log10(Sxx)
+        Sxx = numpy.clip(Sxx, numpy.percentile(Sxx, 5), numpy.percentile(Sxx, 95))
+
+        # Compute time coordinates
+        ts = numpy.arange(0, Sxx.shape[1]) * sft.hop / sft.fs
+        fs = sft.f
+
+    return fs, ts, Sxx
+
 
