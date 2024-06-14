@@ -224,11 +224,7 @@ def get_spectrogram_data(data: pandas.DataFrame, polarization: str = 'plus', win
     ts = data['x'].values
     ys = data['strain'].values
 
-    fs, ts, Sxx = spectrogram(win_m, win_std, ts, ys)
-
-    # Make the data with time and frequency coordinates
-    data = xarray.DataArray(Sxx, dims=['frequency', 'time'], coords={'time': ts, 'frequency': fs})
-
+    data = spectrogram(win_m, win_std, ts, ys)
     return data
 
 
@@ -359,6 +355,7 @@ def spectrogram(win_m, win_std, ts, ys):
 
     if ShortTimeFFT is None:
         fs, t, Sxx = _spectrogram(x=ys, fs=1 / (ts[1] - ts[0]), window=win, scaling='spectrum')
+        dims = ['time', 'frequency']
     else:
         # Get the spectrogram using ShortTimeFFT spectrogram
         sft = ShortTimeFFT(win=win, hop=2, fs=1 / (ts[1] - ts[0]), scale_to='psd')
@@ -372,4 +369,7 @@ def spectrogram(win_m, win_std, ts, ys):
         ts = numpy.arange(0, Sxx.shape[1]) * sft.hop / sft.fs
         fs = sft.f
 
-    return fs, ts, Sxx
+        dims = ['frequency', 'time']
+
+    data = xarray.DataArray(Sxx, dims=dims, coords={'time': ts, 'frequency': fs})
+    return data
