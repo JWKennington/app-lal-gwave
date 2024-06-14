@@ -355,8 +355,9 @@ def spectrogram(win_m, win_std, ts, ys):
 
     if ShortTimeFFT is None:
         fs, t, Sxx = _spectrogram(x=ys, fs=1 / (ts[1] - ts[0]), window=win, scaling='density')
+        hop = 1
+        ts = numpy.arange(0, Sxx.shape[1]) * hop * (ts[1] - ts[0])
         dims = ['time', 'frequency']
-        print(fs, t, Sxx)
     else:
         # Get the spectrogram using ShortTimeFFT spectrogram
         sft = ShortTimeFFT(win=win, hop=2, fs=1 / (ts[1] - ts[0]), scale_to='psd')
